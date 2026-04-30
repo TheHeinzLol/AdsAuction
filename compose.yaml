@@ -9,37 +9,39 @@ services:
     volumes:
       # Mount source code for development (hot reload)
       - ./app:/AdsAuction/app
-#    env_file:
-#      - configs/.env.compose
-#    environment:
-#      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-#    depends_on:
-#      db:
-#        condition: service_healthy
-#    networks:
-#      - AdAuctionNetwork
+    env_file:
+      - ./.env
+    environment:
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - AdAuctionNetwork
     restart: on-failure
 
-  # PostgreSQL Database
-#  db:
-#    image: postgres:16-alpine  # Alpine for smaller size, glibc not needed
-#    ports:
-#      - "5432:5432"  # Expose to host (optional, remove for production)
-#    volumes:
-#      - AdAuctionPostgres:/var/lib/postgresql/data
-#    healthcheck:
-#      test: ["CMD-SHELL", "pg_isready -U postgres_admin"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 5
-#    networks:
-#      - AdAuctionNetwork
-#    restart: unless-stopped
-#
-#networks:
-#  AdAuctionNetwork:
-#    driver: bridge
-#
-#volumes:
-#  AdAuctionPostgres:
-#
+#   PostgreSQL Database
+  db:
+    image: postgres:16-alpine  # Alpine for smaller size, glibc not needed
+    ports:
+      - "5432:5432"  # Expose to host (optional, remove for production)
+    volumes:
+      - AdAuctionPostgres:/var/lib/postgresql/data
+    env_file:
+      - ./.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - AdAuctionNetwork
+    restart: unless-stopped
+
+networks:
+  AdAuctionNetwork:
+    driver: bridge
+
+volumes:
+  AdAuctionPostgres:
+
