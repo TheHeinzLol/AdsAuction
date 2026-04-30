@@ -30,13 +30,24 @@ services:
     env_file:
       - ./.env
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - AdAuctionNetwork
     restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - "5050:80"  # Maps container's port 80 to localhost:5050
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@example.com"  # Login email
+      PGADMIN_DEFAULT_PASSWORD: "admin"          # Login password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'        # Disable server mode for local use
+    networks:
+      - AdAuctionNetwork
 
 networks:
   AdAuctionNetwork:
