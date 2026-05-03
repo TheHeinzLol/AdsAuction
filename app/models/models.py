@@ -13,7 +13,7 @@ class User(Base):
             # But I will leave it here in case I will change the fact
             # that users table will only be changed with http calls
             # for registration or profile editing
-            CheckConstraint('char_length(login) > 4', name='login_min_length_check'),
+            CheckConstraint('char_length(login) > 3', name='login_min_length_check'),
             CheckConstraint('char_length(password) > 8', name='password_min_length_check')
             )
 
@@ -25,7 +25,7 @@ class User(Base):
             default=uuid.uuid4
             )
     login: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
-    password: Mapped[str] = mapped_column(String(16), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
     email: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     date_created: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
