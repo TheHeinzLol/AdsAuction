@@ -13,8 +13,7 @@ class User(Base):
             # But I will leave it here in case I will change the fact
             # that users table will only be changed with http calls
             # for registration or profile editing
-            CheckConstraint('char_length(login) > 3', name='login_min_length_check'),
-            CheckConstraint('char_length(password) > 8', name='password_min_length_check')
+            CheckConstraint('char_length(login) > 2', name='login_min_length_check'),
             )
 
     id: Mapped[uuid.UUID] = mapped_column(
