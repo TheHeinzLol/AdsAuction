@@ -73,7 +73,7 @@ def login_for_access_token(
 
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="Incorrect email or password",
                 headers={'WWW-Authenticate': 'Bearer'},
                 )
