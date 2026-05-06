@@ -1,7 +1,8 @@
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy import CheckConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import List
 import uuid
 
 from app.database.database import Base
@@ -31,4 +32,33 @@ class User(Base):
             nullable=False,
             server_default=func.now()
         )
+    account_balance: Mapped[float] = mapped_column(Float,
+                                                  unique=False,
+                                                  nullable=False,
+                                                  server_default="0"
+                                                  )
+
+    auctions_won: Mapped[List['Auction']] = relationship(back_populates='winner')
+
+class Auction(Base):
+    __tablename__ = 'auctions'
+
+    id: Mapped[str] = mapped_column(
+            Uuid(as_uuid=True, native_uuid=True),
+            primary_key=True,
+            default=uuid.uuid4
+            )
+    winner_id: Mapped[uuid.UUID] = mapped_column(
+            ForeignKey('users.id'),
+            unique=False,
+            nullable=True
+            )
+    winning_bid: Mapped[float] = mapped_column(Float, unique=False, nullable=True)
+    date_started: Mapped[datetime] = mapped_column(
+            DateTime(timezone=True),
+            nullable=False,
+            default=datetime.utcnow()
+            )
+
+    winner: Mapped['User'] = relationship(back_populates='auctions_won')
 

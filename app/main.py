@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.database.database import Base, engine
 from app.routers.users import DBSession, router as users_router
+#from app.routers.auctions import router as auctions_router
 try:
     Base.metadata.create_all(bind=engine)
     print("Tables created successfully")
@@ -9,6 +10,7 @@ except Exception as e:
 
 app = FastAPI()
 app.include_router(users_router)
+#app.include_router(auctions_router)
 @app.get('/')
 def get_root(db: DBSession):
     return {'this':"is index page"}

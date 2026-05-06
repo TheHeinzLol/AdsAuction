@@ -14,7 +14,7 @@ from app.auth.authentification import (
         )
 from app.core.config import settings
 from app.database.database import get_db
-from app.models.models import User
+from app.models.models import User, Auction
 from app.schemas.schemas import Token, UserCreateSchema, UserResponseSchema
 
 import uuid
@@ -123,3 +123,10 @@ def get_current_user(
                 headers=headers,
                 )
     return user
+
+@router.get('/draft')
+def draft(db: DBSession, minimal_bid=0):
+
+    result = db.execute(select(User).where(User.account_balance >= minimal_bid))
+    bidders = result.scalars().all()
+    return {'type': result}
