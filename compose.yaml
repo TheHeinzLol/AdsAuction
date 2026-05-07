@@ -46,6 +46,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: "admin@example.com"  # Login email
       PGADMIN_DEFAULT_PASSWORD: "admin"          # Login password
       PGADMIN_CONFIG_SERVER_MODE: 'False'        # Disable server mode for local use
+      GUNICORN_ACCESS_LOGFILE: "/dev/null"
     networks:
       - AdAuctionNetwork
 

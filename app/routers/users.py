@@ -1,7 +1,7 @@
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import func, select
+from sqlalchemy import func, select, insert
 from sqlalchemy.orm import Session
 from typing import Annotated
 
@@ -36,7 +36,7 @@ def create_user(db: DBSession, payload: UserCreateSchema):
         raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Login already taken",
-                )
+               )
     
     result = db.execute(
             select(User).where(func.lower(User.email) == payload.email.lower()),
@@ -130,3 +130,49 @@ def draft(db: DBSession, minimal_bid=0):
     result = db.execute(select(User).where(User.account_balance >= minimal_bid))
     bidders = result.scalars().all()
     return {'type': result}
+
+# Debug section
+from pydantic import BaseModel
+class TableDropSchema(BaseModel):
+    table: str
+
+@router.post('/populate')
+def populate_user_db(db: DBSession):
+    from random import uniform
+    logins = ['admin', 'ass', 'twat', 'asstwat', 'poopoo', 'peepee', 'foo', 'baz', 'bar',
+              'rkelly', 'JoeBiden', 'JennyTalia']
+    email_postfix = "@fakemail.com"
+    users_to_insert = []
+    for login in logins:
+        result = db.execute(
+                select(User)
+                .where(
+                    func.lower(User.login) == login.lower()
+                    or func.lower(User.email) == (login+email_postfix).lower()
+                       )
+                )
+        existing_user = result.scalars().first()
+        if existing_user:
+            continue
+        users_to_insert.append(
+                {
+                    'login': login,
+                    'email': login+email_postfix,
+                    'password_hash': hash_password(login),
+                    'account_balance': round(uniform(0, 100), 2)
+                }
+            )
+
+    db.execute(insert(User), users_to_insert)
+    db.commit()
+    return {'users inserted': len(users_to_insert)}
+
+@router.post('/drop_table')
+def drop_table(db: DBSession, payload: TableDropSchema):
+    from sqlalchemy import text
+    table = payload.table
+    with db.get_bind().connect() as conn:
+        conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+        conn.commit()
+    print(f"table {table} dropped")
+    print(type(User))
