@@ -1,9 +1,7 @@
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select, insert
-from sqlalchemy.orm import Session
-from typing import Annotated
 
 from app.auth.authentification import (
         create_access_token,
@@ -13,14 +11,13 @@ from app.auth.authentification import (
         verify_password
         )
 from app.core.config import settings
-from app.database.database import get_db
+from app.database.database import DBSession
 from app.models.models import User, Auction
 from app.schemas.schemas import Token, UserCreateSchema, UserResponseSchema
 
 import uuid
 
 router = APIRouter()
-DBSession = Annotated[Session, Depends(get_db)]
 
 @router.post('/',
           status_code=status.HTTP_201_CREATED,
@@ -129,7 +126,7 @@ def draft(db: DBSession, minimal_bid=0):
 
     result = db.execute(select(User).where(User.account_balance >= minimal_bid))
     bidders = result.scalars().all()
-    return {'type': result}
+    return {'type': bidders}
 
 # Debug section
 from pydantic import BaseModel
