@@ -1,0 +1,60 @@
+services:
+  # FastAPI Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for development (hot reload)
+      - ./app:/AdsAuction/app
+    env_file:
+      - ./.env
+    environment:
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --loop uvloop --http httptools
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - AdAuctionNetwork
+    restart: on-failure
+
+#   PostgreSQL Database
+  db:
+    image: postgres:16-alpine  # Alpine for smaller size, glibc not needed
+    ports:
+      - "5432:5432"  # Expose to host (optional, remove for production)
+    volumes:
+      - AdAuctionPostgres:/var/lib/postgresql/data
+    env_file:
+      - ./.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - AdAuctionNetwork
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - "5050:80"  # Maps container's port 80 to localhost:5050
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@example.com"  # Login email
+      PGADMIN_DEFAULT_PASSWORD: "admin"          # Login password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'        # Disable server mode for local use
+      GUNICORN_ACCESS_LOGFILE: "/dev/null"
+    networks:
+      - AdAuctionNetwork
+
+networks:
+  AdAuctionNetwork:
+    driver: bridge
+
+volumes:
+  AdAuctionPostgres:
+
