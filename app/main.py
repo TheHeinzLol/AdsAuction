@@ -17,6 +17,9 @@ def get_root(db: DBSession):
     return {'this':"is index page"}
 
 
-
+# ssp debug
+@app.get('/SSP/{id}')
+async def respond_ssp(id: int):
+    return {'id': id}
 
 
