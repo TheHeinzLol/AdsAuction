@@ -1,37 +1,21 @@
-from time import perf_counter
 import asyncio
-import httpx
-import logging 
+import aiohttp
 
-# initiate logger
-logging.basicConfig(
-        format='%(levelname)s: %(message)s', 
-        encoding='utf-8', 
-        level=logging.WARNING
-)
-
-logger = logging.getLogger('SimpleLogger')
-logger.setLevel(logging.DEBUG)
-
-async def fetch(client: httpx.AsyncClient, idx: int):
-    response = await client.get(f'http://localhost:8000/SSP/{idx}')
-#    print(f"id: {idx}, status: {response.status_code}")
-
-async def fetch_all(client: httpx.AsyncClient, urls: list[int]):
-    tasks = []
-    for url in urls:
-        task = asyncio.create_task(fetch(client, url))
-        tasks.append(task)
-    response = await asyncio.gather(*tasks)
-    return response
+async def fetch(client, idx: int):
+    async with client.get(f'http://localhost:8000/SSP/{idx}') as response:
+        return response.status
+        
+async def fetch_all(client, urls):
+    tasks = [fetch(client, url) for url in urls]
+    result = await asyncio.gather(*tasks)
+    return result
 
 async def main():
-    urls = range(1, 500)
-    start = perf_counter()
-    async with httpx.AsyncClient(trust_env=False) as client:
-        await fetch_all(client, urls)
-    end = perf_counter()
-    print(f"Total time: {end-start}")
+    request_num = 2500
+    urls = range(0, request_num)
+    async with aiohttp.ClientSession() as client:
+        htmls = await fetch_all(client, urls)
 
-asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())
 
