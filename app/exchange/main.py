@@ -26,4 +26,8 @@ async def respond_ssp(id: int):
                 'ads_url': f"http://localhost:8000/SSP/{id}"
                 'date_shown': datetime.utcnow()
                 }
-   
+
+@app.post('/SSP/{id}')#add response schema which is the same but with a url added
+async def respond_to_ad_request(id: int, user_info):#make user_info a schema
+    user_info.ad_url = f"http://localhost:8000/SSP/{id}"
+    return user_info
