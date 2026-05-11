@@ -14,7 +14,7 @@ async def respond_ssp(id: int):
                 'date_shown': datetime.utcnow()
                 }
 
-@router.post('/SSP/{id}', response_model=SSPAnswerSchema)
+@router.post('/SSP/{id}', response_model=SSPResponseSchema)
 async def respond_to_ad_request(
         id: int,
         user_info: SSPUserInfoSchema

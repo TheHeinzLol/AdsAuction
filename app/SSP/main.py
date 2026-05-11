@@ -3,23 +3,23 @@ import aiohttp
 import random
 
 from datetime import datetime, timedelta, timezone
-from pycountry import countries
+from pycountry import countries, languages
 from typing import Dict
 
 
 async def generate_ssp_user_info() -> Dict:
     tz = timezone(timedelta(hours=random.randint(-12, 12)))
-    date = datetime.now(tz)
+    date = datetime.now(tz).isoformat()
 
-    region = random.choice(pycountry.countries).alpha_3
+    region = random.choice(list(countries)).alpha_3
 
-    language = random.choice(pycountry.languages).alpha_3
+    language = random.choice(list(languages)).alpha_3
 
     devices = ["pc", "phone", "display"]
     device = random.choices(devices, weights=[0.4, 0.4, 0.2], k=1)
 
     channels = ["social", "search", "streaming_video", "streaming_audio"]
-    channel = random.choices(channels, weights=[0.4, 0.4, 0.1, 0.1]) if device is not "display" else "display"
+    channel = random.choices(channels, weights=[0.4, 0.4, 0.1, 0.1]) if device != "display" else "display"
 
     categories = ["technology", "pets", "beauty", "healthcare", "games", "food", "automobiles"]
     category = random.choice(categories)
@@ -40,7 +40,7 @@ async def fetch(client: aiohttp.ClientSession, idx: int):
 async def make_ad_request(client: aiohttp.ClientSession, idx: int):
     async with client.post(
             f'http://localhost:8000/SSP/{idx}',
-            json=generate_ssp_user_info()
+            json= await generate_ssp_user_info()
         ) as response:
         return response
 
