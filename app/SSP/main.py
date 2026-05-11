@@ -11,7 +11,9 @@ async def generate_ssp_user_info() -> Dict:
     tz = timezone(timedelta(hours=random.randint(-12, 12)))
     date = datetime.now(tz)
 
-    region = random.choice(pycountry.countries).alpha_2
+    region = random.choice(pycountry.countries).alpha_3
+
+    language = random.choice(pycountry.languages).alpha_3
 
     devices = ["pc", "phone", "display"]
     device = random.choices(devices, weights=[0.4, 0.4, 0.2], k=1)

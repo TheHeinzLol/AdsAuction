@@ -1,5 +1,21 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, EmailStr, Field
+from typing import Annotated
+
+# SSP schemas
+class SSPUserInfoSchema(BaseModel):
+    """Schema for validation of a user info sent to
+    exchange service by the SSP"""
+    timestamp: datetime
+    region: str
+    language: str
+    device: str
+    channel: str
+    category: str
+
+class SSPResponseSchema(SSPUserInfoSchema):
+    """Same data which exchange got but with ads URL"""
+    ad_url: str
 
 class UserBaseSchema(BaseModel):
     email: EmailStr = Field(max_length=50)

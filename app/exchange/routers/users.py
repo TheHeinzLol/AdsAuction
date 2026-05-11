@@ -3,17 +3,17 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select, insert
 
-from app.auth.authentification import (
+from ..auth.authentification import (
         create_access_token,
         hash_password,
         oauth2_scheme,
         verify_access_token,
         verify_password
         )
-from app.core.config import settings
-from app.database.database import DBSession
-from app.models.models import User, Auction
-from app.schemas.schemas import Token, UserCreateSchema, UserResponseSchema
+from ..core.config import settings
+from ..database.database import DBSession
+from ..models.models import User, Auction
+from ..schemas.schemas import Token, UserCreateSchema, UserResponseSchema
 
 import uuid
 
@@ -151,7 +151,7 @@ def populate_user_db(db: DBSession):
         existing_user = result.scalars().first()
         if existing_user:
             continue
-        users_to_insert.append(
+        users_to_insert.app.exchange.nd(
                 {
                     'login': login,
                     'email': login+email_postfix,

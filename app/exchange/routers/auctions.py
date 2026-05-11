@@ -2,8 +2,8 @@ from datetime import datetime
 from fastapi import APIRouter
 from sqlalchemy import select, update, desc
 
-from app.database.database import DBSession
-from app.models.models import User, Auction
+from ..database.database import DBSession
+from ..models.models import User, Auction
 
 router = APIRouter()
 
