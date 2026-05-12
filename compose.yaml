@@ -8,7 +8,7 @@ services:
       - "8000:8000"
     volumes:
       # Mount source code for development (hot reload)
-      - ./app:/AdsAuction/app
+      - ./app/exchange:/AdsAuction/app/exchange
     env_file:
       - ./.env
     environment:
@@ -16,6 +16,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - AdAuctionNetwork
+    restart: on-failure
+
+  redis:
+    image: redis:8.6
+    volumes:
+      - redis_data:/AdsAuction/app/exchange/redis
+    ports: 
+      - "6379:6379"
     networks:
       - AdAuctionNetwork
     restart: on-failure
@@ -36,7 +46,7 @@ services:
       retries: 5
     networks:
       - AdAuctionNetwork
-    restart: unless-stopped
+    restart: on-failure
 
   pgadmin:
     image: dpage/pgadmin4
