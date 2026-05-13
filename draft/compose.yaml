@@ -1,0 +1,14 @@
+services:
+  redis:
+    image: redis:8.6
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - redis_data_test:/DraftRedis
+    ports: 
+      - "6379:6379"
+    restart: on-failure
+
+volumes: 
+  redis_data_test:
