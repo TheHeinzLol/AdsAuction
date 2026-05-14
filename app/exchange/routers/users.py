@@ -180,51 +180,39 @@ def drop_table(db: DBSession, payload: TableDropSchema):
     return {'dropped': table}
 
 # populating
+import string
+from sqlalchemy import insert
+from random import choice, choices, uniform
+from typing import List
+KNOWN_PASSWORD_HASH = hash_password("test123")
 class PopulateRandomSchema(BaseModel):
-    insert_number: int
+    insert_number: int = 100
+
+def generate_login(login_min_length: int, login_max_length: int) -> str:
+#generate a random login of 3-20 length characters, including letters and digits
+    length = choice(range(login_min_length, login_max_length+1))
+    return ''.join(choices(string.ascii_letters + string.digits, k=length))
+
+def generate_user(login:str) -> UserCreateSchema:
+    return {
+            'login': login,
+            'email': f"{login}@fakemail.com",
+            'password_hash': KNOWN_PASSWORD_HASH,
+            'account_balance': round(uniform(0, 100), 2)
+            }
 
 @router.post('/populate_db')
 def populate_db(db: DBSession, payload: PopulateRandomSchema):
-    import random
-    import string
-    from sqlalchemy import insert
+    from time import perf_counter
     insert_number = payload.insert_number
-    def generate_login(login_min_length: int, login_max_length: int) -> str:
-#generate a random login of 3-20 length characters, including letters and digits
-        random_login = ''.join(random.choices(
-            string.ascii_letters + string.digits, 
-            k=random.choice(range(login_min_length, login_max_length+1))
-            )
-         )
-        return random_login
-
-    logins = [generate_login(3,20) for i in range(1, insert_number+1)]
-
-    def generate_user(login:str) -> UserCreateSchema:
-        user = {
-                'login': login,
-                'email': login+"@fakemail.com",
-                'password_hash': hash_password(login),
-                'account_balance': round(random.uniform(0, 100), 2)
-                }
-        return user
-
-    users = [generate_user(login) for login in logins]
-    print(users[:5])
-
-    from typing import List
-    def populate_db(
-            db: DBSession,
-            logins: List[str],
-            users: List[UserCreateSchema]
-            ):
-        db.execute(insert(User), users)
-        db.commit()
-        print("db populated")
-    
+    start = perf_counter()
+    users = [generate_user(generate_login(3, 20)) for _ in range(insert_number)]
+    print(f"generation elapsed in {(perf_counter() - start) *1000}")
     print(f"Populating db with {insert_number} users")
-    populate_db(db, logins, users)
-
+    start = perf_counter()
+    db.execute(insert(User), users, execution_options={'synchronize_session': False})
+    db.commit()
+    print(f"insert elapsed in {(perf_counter() - start) *1000}")
+    print("db populated")
     return {'populated': insert_number}
-
 
