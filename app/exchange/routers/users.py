@@ -11,7 +11,7 @@ from ..auth.authentification import (
         verify_password
         )
 from ..core.config import settings
-from ..database.database import DBSession
+from ..database.database import Base, DBSession, engine #base and engine are for recreating db after drop
 from ..models.models import User, Auction
 from ..schemas.schemas import Token, UserCreateSchema, UserResponseSchema
 
@@ -151,7 +151,7 @@ def populate_user_db(db: DBSession):
         existing_user = result.scalars().first()
         if existing_user:
             continue
-        users_to_insert.app.exchange.nd(
+        users_to_insert.append(
                 {
                     'login': login,
                     'email': login+email_postfix,
@@ -159,9 +159,9 @@ def populate_user_db(db: DBSession):
                     'account_balance': round(uniform(0, 100), 2)
                 }
             )
-
-    db.execute(insert(User), users_to_insert)
-    db.commit()
+    if len(users_to_insert) > 0:
+        db.execute(insert(User), users_to_insert)
+        db.commit()
     return {'users inserted': len(users_to_insert)}
 
 @router.post('/drop_table')
@@ -172,4 +172,59 @@ def drop_table(db: DBSession, payload: TableDropSchema):
         conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
         conn.commit()
     print(f"table {table} dropped")
-    print(type(User))
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Tables created successfully")
+    except Exception as e:
+        print(f"Failed to create tables: {e}")
+    return {'dropped': table}
+
+# populating
+class PopulateRandomSchema(BaseModel):
+    insert_number: int
+
+@router.post('/populate_db')
+def populate_db(db: DBSession, payload: PopulateRandomSchema):
+    import random
+    import string
+    from sqlalchemy import insert
+    insert_number = payload.insert_number
+    def generate_login(login_min_length: int, login_max_length: int) -> str:
+#generate a random login of 3-20 length characters, including letters and digits
+        random_login = ''.join(random.choices(
+            string.ascii_letters + string.digits, 
+            k=random.choice(range(login_min_length, login_max_length+1))
+            )
+         )
+        return random_login
+
+    logins = [generate_login(3,20) for i in range(1, insert_number+1)]
+
+    def generate_user(login:str) -> UserCreateSchema:
+        user = {
+                'login': login,
+                'email': login+"@fakemail.com",
+                'password_hash': hash_password(login),
+                'account_balance': round(random.uniform(0, 100), 2)
+                }
+        return user
+
+    users = [generate_user(login) for login in logins]
+    print(users[:5])
+
+    from typing import List
+    def populate_db(
+            db: DBSession,
+            logins: List[str],
+            users: List[UserCreateSchema]
+            ):
+        db.execute(insert(User), users)
+        db.commit()
+        print("db populated")
+    
+    print(f"Populating db with {insert_number} users")
+    populate_db(db, logins, users)
+
+    return {'populated': insert_number}
+
+

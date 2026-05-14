@@ -66,4 +66,4 @@ networks:
 
 volumes:
   AdAuctionPostgres:
-
+  redis_data:
