@@ -1,4 +1,5 @@
 from datetime import datetime
+from random import uniform
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy import CheckConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -35,7 +36,7 @@ class User(Base):
     account_balance: Mapped[float] = mapped_column(Float,
                                                   unique=False,
                                                   nullable=False,
-                                                  server_default="0"
+                                                  default=round(uniform(0, 100), 2)
                                                   )
 
     auctions_won: Mapped[List['Auction']] = relationship(back_populates='winner')

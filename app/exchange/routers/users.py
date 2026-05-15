@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from fastapi import APIRouter, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -19,11 +20,11 @@ import uuid
 
 router = APIRouter()
 
-@router.post('/',
+@router.post('/sign_up',
           status_code=status.HTTP_201_CREATED,
           response_model=UserResponseSchema
           )
-def create_user(db: DBSession, payload: UserCreateSchema):
+async def create_user(db: DBSession, payload: UserCreateSchema):
    
     result = db.execute(
             select(User).where(func.lower(User.login) == payload.login.lower()),
@@ -120,13 +121,6 @@ def get_current_user(
                 headers=headers,
                 )
     return user
-
-@router.get('/draft')
-def draft(db: DBSession, minimal_bid=0):
-
-    result = db.execute(select(User).where(User.account_balance >= minimal_bid))
-    bidders = result.scalars().all()
-    return {'type': bidders}
 
 # Debug section
 from pydantic import BaseModel
