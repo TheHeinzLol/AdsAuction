@@ -3,28 +3,37 @@ from fastapi import Depends
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from typing import Annotated
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 DATABASE_URL = os.getenv('DATABASE_URL')
-#engine = create_engine(DATABASE_URL)
 
-engine = create_engine(
+#sync engine for table creation
+sync_engine = create_engine(DATABASE_URL.replace("asyncpg", "psycopg"))
+
+#async engine for everything else
+async_engine = create_async_engine(
     DATABASE_URL,
-    pool_size=10,           # Keep 10 connections open
+    pool_size=20,           # Keep 10 connections open
     max_overflow=20,        # Allow up to 20 extra if needed
     pool_pre_ping=True,     # Verify connections are alive
     echo=False              # Turn off SQL logging for production
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = async_sessionmaker(
+        bind=async_engine,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False
+    )
 
 class Base(DeclarativeBase):
     pass
 
-def get_db():
-    with SessionLocal() as db:
+async def get_db():
+    async with SessionLocal() as db:
         try:
             yield db
         finally:
-            db.close()
+            await db.close()
 
-DBSession = Annotated[Session, Depends(get_db)]
+DBSession = Annotated[AsyncSession, Depends(get_db)]

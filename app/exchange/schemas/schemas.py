@@ -22,7 +22,7 @@ class UserBaseSchema(BaseModel):
     login: str = Field(min_length=3, max_length=20)
 
 class UserCreateSchema(UserBaseSchema):
-    password: str = Field(min_length=3, max_length=16)
+    password: str = Field(min_length=3, max_length=20)
 
 class UserResponseSchema(UserBaseSchema):
     date_created: datetime

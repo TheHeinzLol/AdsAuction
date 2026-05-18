@@ -33,11 +33,6 @@ class User(Base):
             nullable=False,
             server_default=func.now()
         )
-    account_balance: Mapped[float] = mapped_column(Float,
-                                                  unique=False,
-                                                  nullable=False,
-                                                  default=round(uniform(0, 100), 2)
-                                                  )
 
     auctions_won: Mapped[List['Auction']] = relationship(back_populates='winner')
 

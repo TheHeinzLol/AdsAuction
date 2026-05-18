@@ -12,13 +12,14 @@ from ..auth.authentification import (
         verify_password
         )
 from ..core.config import settings
-from ..database.database import Base, DBSession, engine #base and engine are for recreating db after drop
+from ..database.database import Base, DBSession, sync_engine #base and engine are for recreating db after drop
 from ..models.models import User, Auction
 from ..schemas.schemas import Token, UserCreateSchema, UserResponseSchema
 
 import uuid
 
 router = APIRouter()
+KNOWN_HASH = hash_password("psswrd")
 
 @router.post('/sign_up',
           status_code=status.HTTP_201_CREATED,
@@ -26,7 +27,7 @@ router = APIRouter()
           )
 async def create_user(db: DBSession, payload: UserCreateSchema):
    
-    result = db.execute(
+    result = await db.execute(
             select(User).where(func.lower(User.login) == payload.login.lower()),
             )
     existing_user = result.scalars().first()
@@ -36,7 +37,7 @@ async def create_user(db: DBSession, payload: UserCreateSchema):
                 detail="Login already taken",
                )
     
-    result = db.execute(
+    result = await db.execute(
             select(User).where(func.lower(User.email) == payload.email.lower()),
             )
     existing_email = result.scalars().first()
@@ -49,11 +50,11 @@ async def create_user(db: DBSession, payload: UserCreateSchema):
     new_user = User(
             login=payload.login.strip(),
             email=payload.email.lower().strip(),
-            password_hash=hash_password(payload.password)
+            password_hash=KNOWN_HASH#hash_password(payload.password)
             )
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
     return new_user
 
 @router.post('/token', response_model=Token)
@@ -167,46 +168,9 @@ def drop_table(db: DBSession, payload: TableDropSchema):
         conn.commit()
     print(f"table {table} dropped")
     try:
-        Base.metadata.create_all(bind=engine)
+        Base.metadata.create_all(bind=sync_engine)
         print("Tables created successfully")
     except Exception as e:
         print(f"Failed to create tables: {e}")
     return {'dropped': table}
-
-# populating
-import string
-from sqlalchemy import insert
-from random import choice, choices, uniform
-from typing import List
-KNOWN_PASSWORD_HASH = hash_password("test123")
-class PopulateRandomSchema(BaseModel):
-    insert_number: int = 100
-
-def generate_login(login_min_length: int, login_max_length: int) -> str:
-#generate a random login of 3-20 length characters, including letters and digits
-    length = choice(range(login_min_length, login_max_length+1))
-    return ''.join(choices(string.ascii_letters + string.digits, k=length))
-
-def generate_user(login:str) -> UserCreateSchema:
-    return {
-            'login': login,
-            'email': f"{login}@fakemail.com",
-            'password_hash': KNOWN_PASSWORD_HASH,
-            'account_balance': round(uniform(0, 100), 2)
-            }
-
-@router.post('/populate_db')
-def populate_db(db: DBSession, payload: PopulateRandomSchema):
-    from time import perf_counter
-    insert_number = payload.insert_number
-    start = perf_counter()
-    users = [generate_user(generate_login(3, 20)) for _ in range(insert_number)]
-    print(f"generation elapsed in {(perf_counter() - start) *1000}")
-    print(f"Populating db with {insert_number} users")
-    start = perf_counter()
-    db.execute(insert(User), users, execution_options={'synchronize_session': False})
-    db.commit()
-    print(f"insert elapsed in {(perf_counter() - start) *1000}")
-    print("db populated")
-    return {'populated': insert_number}
 
