@@ -12,8 +12,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.WARNING)
 
 async def generate_ssp_user_info() -> Dict:
-    tz = timezone(timedelta(hours=random.randint(-12, 12)))
-    date = datetime.now(tz).isoformat()
+    local_hour = random.randint(0, 23)
 
     region = random.choice(list(countries)).alpha_3
 
@@ -30,7 +29,7 @@ async def generate_ssp_user_info() -> Dict:
     category = random.choice(categories)
 
     ssp_user_info = {
-            'timestamp': date,
+            'local_hour': local_hour,
             'region': region,
             'language': language,
             'device': device,
