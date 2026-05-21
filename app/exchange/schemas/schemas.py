@@ -6,12 +6,13 @@ from typing import Annotated
 class SSPUserInfoSchema(BaseModel):
     """Schema for validation of a user info sent to
     exchange service by the SSP"""
-    timestamp: datetime
+    local_hour: int
     region: str
-    language: str
+    languages: list[str]
     device: str
     channel: str
-    category: str
+    categories: list[str]
+    ad_size: list[int] | None
 
 class SSPResponseSchema(SSPUserInfoSchema):
     """Same data which exchange got but with ads URL"""

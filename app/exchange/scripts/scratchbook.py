@@ -1,13 +1,13 @@
-
 import logging
 
-from random import choice, choices, randint, sample
+from random import choices, randint, sample
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 
 CHANNELS = [
     "audio streaming",
+    "billboard display",
     "maps",
     "search",
     "social",
@@ -79,15 +79,16 @@ def generate_base() -> dict:
     # generate local time
     local_hour = randint(0, 23)
     # generate region
-    region = choice(country_list)
+    regions = sample(list(country_list), k=randint(1, len(country_list)))
     # take languages of generated region
-    languages_set =  list({lang for lang in countries_languages[region]})
+    languages_set =  list({lang for region in regions
+                      for lang in countries_languages[region]})
     # and pick random number of those
     languages = sample(languages_set, k=randint(1, len(languages_set)))
 
     ssp_user = {
             'local_hour': local_hour,
-            'region': region,
+            'regions': regions,
             'languages': languages
             }
     return ssp_user
@@ -123,11 +124,11 @@ def weighted_sample_without_replacement(items: list, weights: list[float], k: in
     selected = []
 
     for _ in range(k):
-        chosen = choices(items, weights=weights, k=1)[0]
+        choice = choices(items, weights=weights, k=1)[0]
 
-        idx = items.index(chosen)
+        idx = items.index(choice)
 
-        selected.append(chosen)
+        selected.append(choice)
 
         items.pop(idx)
         weights.pop(idx)
@@ -142,65 +143,23 @@ def generate_portable_screen_user(
                                 ad_sizes: list[list[int]]
 ) -> dict:
     check_argument_length(channels, categories, placement_types)
+    #list excluded parameters
+    channels.remove("billboard display")
+    placement_types.remove("billboard")
     # weights to base generation on
     weights_channels = [0.1, 0.1, 0.3, 0.3, 0.1] 
     # generating user info
     ssp_user_info = generate_base()
-    ssp_user_info['device'] = choices(
-            ["pc", "phone", "TV"],
-            weights=[0.4, 0.5, 0.1],
-            k=1
-        )[0]
-    ssp_user_info["channel"] = weighted_sample_without_replacement(
+    ssp_user_info["channels"] = weighted_sample_without_replacement(
                 items=channels,
                 weights=weights_channels,
-                k=1
-                )[0]
+                k=randint(1, len(channels))
+                )
     ssp_user_info["categories"] = sample(
             categories, 
             k=randint(1, len(categories)))
-    ssp_user_info["ad_size"] = choice(ad_sizes)
+    ssp_user_info["ad_size"] = sample(ad_sizes, k=1)
 
     logger.debug(f"Generated user info: {ssp_user_info}")
     return ssp_user_info
 
-def generate_speaker_user(categories: list[str]) -> dict:
-
-    ssp_user_info = generate_base()
-    ssp_user_info["device"] = "smart speaker"
-    ssp_user_info["channel"] = "audio streaming"
-    ssp_user_info["categories"] = sample(categories, k=randint(1, len(categories)))
-    ssp_user_info["ad_size"]= None
-    logger.debug(f"Generated user info: {ssp_user_info}")
-    return ssp_user_info
-
-def generate_billboard_user(
-        categories: list[str],
-        ad_sizes: list[list[int]]
-) -> dict:
-    ssp_user_info = generate_base()
-    ssp_user_info["device"] = "billboard"
-    ssp_user_info["channel"] = "billboard display"
-    ssp_user_info["categories"] = sample(categories, k=randint(1, len(categories)))
-    ssp_user_info["ad_size"]= choice(ad_sizes)
-    logger.debug(f"Generated user info: {ssp_user_info}")
-    return ssp_user_info
-
-def generate_ssp_user():
-    return choices(
-            [
-                generate_portable_screen_user(CHANNELS,
-                                              CATEGORIES,
-                                              PLACEMENT_TYPES,
-                                              AD_SIZES),
-                generate_speaker_user(CATEGORIES),
-                generate_billboard_user(CATEGORIES, AD_SIZES)
-                ],
-            weights=[0.8, 0.1, 0.1],
-            k=1)[0]
-
-if __name__ == "__main__":
-    #generate_portable_screen_user(CHANNELS, CATEGORIES, PLACEMENT_TYPES, AD_SIZES)
-    #generate_speaker_user(CATEGORIES)
-    #generate_billboard_user(CATEGORIES, AD_SIZES)
-    print(generate_ssp_user())
