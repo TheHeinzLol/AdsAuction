@@ -18,6 +18,10 @@ app.include_router(ssp_router)
 def get_root(db: DBSession):
     return {'this':"is index page"}
 
+@app.get('/healthz')
+def health_check():
+    return {"status": "healty"}
+
 @app.get('/test_db')
 async def test_db(db: DBSession):
     from sqlalchemy import select

@@ -1,5 +1,8 @@
 FROM python:3.14-slim
 
+# Curl for fastapi healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # This is a path inside the container
 WORKDIR /AdsAuction
 

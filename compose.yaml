@@ -1,6 +1,6 @@
 services:
   # FastAPI Application
-  api:
+  exchange_fapi:
     build:
       context: .
       dockerfile: Dockerfile
@@ -13,57 +13,74 @@ services:
       - ./.env
     environment:
       - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - AdAuctionNetwork
-    restart: on-failure
-
-  redis:
-    image: redis:8.6
-    volumes:
-      - redis_data:/AdsAuction/app/exchange/redis
-    ports: 
-      - "6379:6379"
-    networks:
-      - AdAuctionNetwork
-    restart: on-failure
-
-#   PostgreSQL Database
-  db:
-    image: postgres:16-alpine  # Alpine for smaller size, glibc not needed
-    ports:
-      - "5432:5432"  # Expose to host (optional, remove for production)
-    volumes:
-      - AdAuctionPostgres:/var/lib/postgresql/data
-    env_file:
-      - ./.env
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
-      interval: 10s
+      test: curl --fail http://localhost:8000/healthz || exit 1
+      interval: 86400s
       timeout: 5s
-      retries: 5
-    networks:
+      retries: 3
+      start_period: 5s
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#    networks:
+#      - AdAuctionNetwork
+    restart: on-failure
+    
+  rabbitmq:
+    image: rabbitmq:4.3.0-management-alpine
+    ports:
+      - "5672:5672"
+    networks: 
       - AdAuctionNetwork
     restart: on-failure
+    depends_on:
+      exchange_fapi:
+        condition: service_healthy
 
-  pgadmin:
-    image: dpage/pgadmin4
-    ports:
-      - "5050:80"  # Maps container's port 80 to localhost:5050
-    environment:
-      PGADMIN_DEFAULT_EMAIL: "admin@example.com"  # Login email
-      PGADMIN_DEFAULT_PASSWORD: "admin"          # Login password
-      PGADMIN_CONFIG_SERVER_MODE: 'False'        # Disable server mode for local use
-      GUNICORN_ACCESS_LOGFILE: "/dev/null"
-    networks:
-      - AdAuctionNetwork
+#  redis:
+#    image: redis:8.6
+#    volumes:
+#      - redis_data:/AdsAuction/app/exchange/redis
+#    ports: 
+#      - "6379:6379"
+#    networks:
+#      - AdAuctionNetwork
+#    restart: on-failure
+
+##   PostgreSQL Database
+#  db:
+#    image: postgres:16-alpine  # Alpine for smaller size, glibc not needed
+#    ports:
+#      - "5432:5432"  # Expose to host (optional, remove for production)
+#    volumes:
+#      - AdAuctionPostgres:/var/lib/postgresql/data
+#    env_file:
+#      - ./.env
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#    networks:
+#      - AdAuctionNetwork
+#    restart: on-failure
+
+#  pgadmin:
+#    image: dpage/pgadmin4
+#    ports:
+#      - "5050:80"  # Maps container's port 80 to localhost:5050
+#    environment:
+#      PGADMIN_DEFAULT_EMAIL: "admin@example.com"  # Login email
+#      PGADMIN_DEFAULT_PASSWORD: "admin"          # Login password
+#      PGADMIN_CONFIG_SERVER_MODE: 'False'        # Disable server mode for local use
+#      GUNICORN_ACCESS_LOGFILE: "/dev/null"
+#    networks:
+#      - AdAuctionNetwork
 
 networks:
   AdAuctionNetwork:
     driver: bridge
 
-volumes:
-  AdAuctionPostgres:
-  redis_data:
+#volumes:
+#  AdAuctionPostgres:
+#  redis_data:
