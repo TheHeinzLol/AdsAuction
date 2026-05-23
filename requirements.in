@@ -5,4 +5,4 @@ pwdlib[argon2]==0.3.0
 pyjwt==2.12.1
 aiohttp==3.13.5
 redis==7.4.0
-pika==1.4.0
+prometheus-client==0.25.0

@@ -14,7 +14,8 @@ services:
     environment:
       - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     healthcheck:
-      test: curl --fail http://localhost:8000/healthz || exit 1
+      test: ["CMD", "python", "-c",
+      "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
       interval: 86400s
       timeout: 5s
       retries: 3
@@ -22,20 +23,35 @@ services:
 #    depends_on:
 #      db:
 #        condition: service_healthy
-#    networks:
-#      - AdAuctionNetwork
-    restart: on-failure
-    
-  rabbitmq:
-    image: rabbitmq:4.3.0-management-alpine
-    ports:
-      - "5672:5672"
-    networks: 
+    networks:
       - AdAuctionNetwork
     restart: on-failure
+
+  prometheus:
+    image: prom/prometheus:main
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+    networks:
+      - AdAuctionNetwork
     depends_on:
       exchange_fapi:
         condition: service_healthy
+
+#  grafana:
+#    image: grafana/grafana:main-distroless-slim
+#    ports:
+#      - "3000:3000"
+#    environment:
+#      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+#    networks:
+#      - AdAuctionNetwork
+#    depends_on:
+#      prometheus:
+#        condition: service_started
 
 #  redis:
 #    image: redis:8.6

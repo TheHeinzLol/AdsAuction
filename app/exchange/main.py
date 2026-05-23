@@ -22,9 +22,3 @@ def get_root(db: DBSession):
 def health_check():
     return {"status": "healty"}
 
-@app.get('/test_db')
-async def test_db(db: DBSession):
-    from sqlalchemy import select
-    result = await db.execute(select(1))
-    print(result.scalar())
-    return {"status": "ok"}
