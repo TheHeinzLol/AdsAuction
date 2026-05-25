@@ -11,8 +11,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 async def make_ad_request(client: aiohttp.ClientSession, idx: int):
     async with client.post(
-            f'http://localhost:8000/SSP/{idx}',
-            json= generate_ssp_user()
+            f'http://localhost:8000/SSP',
+            json=generate_ssp_user(idx=idx)
         ) as response:
         if response.status != 200:
             logger.debug(f"response: {await response.text()}")

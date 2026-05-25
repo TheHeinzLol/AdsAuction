@@ -186,8 +186,8 @@ def generate_billboard_user(
     logger.debug(f"Generated user info: {ssp_user_info}")
     return ssp_user_info
 
-def generate_ssp_user():
-    return choices(
+def generate_ssp_user(idx: int):
+    ssp_user_info = choices(
             [
                 generate_portable_screen_user(CHANNELS,
                                               CATEGORIES,
@@ -198,6 +198,8 @@ def generate_ssp_user():
                 ],
             weights=[0.8, 0.1, 0.1],
             k=1)[0]
+    ssp_user_info['id'] = idx
+    return ssp_user_info
 
 if __name__ == "__main__":
     #generate_portable_screen_user(CHANNELS, CATEGORIES, PLACEMENT_TYPES, AD_SIZES)
