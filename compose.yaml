@@ -41,17 +41,17 @@ services:
       exchange_fapi:
         condition: service_healthy
 
-#  grafana:
-#    image: grafana/grafana:main-distroless-slim
-#    ports:
-#      - "3000:3000"
-#    environment:
-#      - GF_INSTALL_PLUGINS=grafana-piechart-panel
-#    networks:
-#      - AdAuctionNetwork
-#    depends_on:
-#      prometheus:
-#        condition: service_started
+  grafana:
+    image: grafana/grafana:main-distroless-slim
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    networks:
+      - AdAuctionNetwork
+    depends_on:
+      prometheus:
+        condition: service_started
 
 #  redis:
 #    image: redis:8.6

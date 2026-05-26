@@ -6,6 +6,7 @@ from typing import Annotated
 class SSPUserInfoSchema(BaseModel):
     """Schema for validation of a user info sent to
     exchange service by the SSP"""
+    id: int
     local_hour: int
     region: str
     languages: list[str]
