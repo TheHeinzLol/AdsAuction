@@ -12,8 +12,8 @@ from ..auth.authentification import (
         verify_password
         )
 from ..core.config import settings
-from ..database.database import Base, DBSession, sync_engine #base and engine are for recreating db after drop
-from ..models.models import User, Auction
+from ..database.database import DBSession
+from ..models.models import Base, User, Auction
 from ..schemas.schemas import Token, UserCreateSchema, UserResponseSchema
 
 import uuid
@@ -167,10 +167,5 @@ def drop_table(db: DBSession, payload: TableDropSchema):
         conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
         conn.commit()
     print(f"table {table} dropped")
-    try:
-        Base.metadata.create_all(bind=sync_engine)
-        print("Tables created successfully")
-    except Exception as e:
-        print(f"Failed to create tables: {e}")
     return {'dropped': table}
 

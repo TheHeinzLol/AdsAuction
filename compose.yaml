@@ -20,9 +20,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
-#    depends_on:
-#      db:
-#        condition: service_healthy
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - AdAuctionNetwork
     restart: on-failure
@@ -63,23 +63,23 @@ services:
 #      - AdAuctionNetwork
 #    restart: on-failure
 
-##   PostgreSQL Database
-#  db:
-#    image: postgres:16-alpine  # Alpine for smaller size, glibc not needed
-#    ports:
-#      - "5432:5432"  # Expose to host (optional, remove for production)
-#    volumes:
-#      - AdAuctionPostgres:/var/lib/postgresql/data
-#    env_file:
-#      - ./.env
-#    healthcheck:
-#      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 5
-#    networks:
-#      - AdAuctionNetwork
-#    restart: on-failure
+#   PostgreSQL Database
+  db:
+    image: postgres:16-alpine  # Alpine for smaller size, glibc not needed
+    ports:
+      - "5432:5432"  # Expose to host (optional, remove for production)
+    volumes:
+      - AdAuctionPostgres:/var/lib/postgresql/data
+    env_file:
+      - ./.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - AdAuctionNetwork
+    restart: on-failure
 
 #  pgadmin:
 #    image: dpage/pgadmin4
@@ -97,6 +97,6 @@ networks:
   AdAuctionNetwork:
     driver: bridge
 
-#volumes:
-#  AdAuctionPostgres:
+volumes:
+  AdAuctionPostgres:
 #  redis_data:

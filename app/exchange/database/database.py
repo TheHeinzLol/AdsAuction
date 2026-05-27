@@ -1,15 +1,10 @@
 import os
 from fastapi import Depends
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from typing import Annotated
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 DATABASE_URL = os.getenv('DATABASE_URL')
-
-#sync engine for table creation
-sync_engine = create_engine(DATABASE_URL.replace("asyncpg", "psycopg"))
-
 #async engine for everything else
 async_engine = create_async_engine(
     DATABASE_URL,
@@ -25,9 +20,6 @@ SessionLocal = async_sessionmaker(
         autocommit=False,
         autoflush=False
     )
-
-class Base(DeclarativeBase):
-    pass
 
 async def get_db():
     async with SessionLocal() as db:
