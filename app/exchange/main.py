@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from contextlib import asynccontextmanager
-from .database.database import async_engine, DBSession, sync_engine
+from .database.database import async_engine, DBSession
 from .middleware.metrics import setup_prometheus
 from .models.models import Base
 from .routers.users import router as users_router
@@ -10,8 +10,11 @@ from .routers.ssp import router as ssp_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with async_engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
+    try:
+        async with async_engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        print(f"Failed to create tables: {e}")
     yield
 
 app = FastAPI(title="Exchange FastAPI", lifespan=lifespan)
