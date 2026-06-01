@@ -6,7 +6,7 @@ from typing import Callable, Awaitable
 
 
 REQUESTS_TOTAL = Counter(
-    "ad_requests_total",
+    "http_requests_total",
     "Total HTTP requests received",
     labelnames=["endpoint", "method", "status"]
 )

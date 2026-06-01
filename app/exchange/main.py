@@ -25,7 +25,7 @@ app.include_router(auctions_router)
 app.include_router(ssp_router)
 
 @app.get('/')
-def get_root(db: DBSession):
+def get_root():
     return {'this':"is index page"}
 
 @app.get('/healthz')

@@ -47,6 +47,9 @@ services:
       - "3000:3000"
     environment:
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - grafanadata:/var/lib/grafana
     networks:
       - AdAuctionNetwork
     depends_on:
@@ -97,6 +100,7 @@ networks:
   AdAuctionNetwork:
     driver: bridge
 
-#volumes:
+volumes:
+  grafanadata:
 #  AdAuctionPostgres:
 #  redis_data:
