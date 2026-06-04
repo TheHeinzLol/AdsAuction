@@ -202,7 +202,5 @@ def generate_ssp_user(idx: int):
     return ssp_user_info
 
 if __name__ == "__main__":
-    #generate_portable_screen_user(CHANNELS, CATEGORIES, PLACEMENT_TYPES, AD_SIZES)
-    #generate_speaker_user(CATEGORIES)
-    #generate_billboard_user(CATEGORIES, AD_SIZES)
     print(generate_ssp_user())
+

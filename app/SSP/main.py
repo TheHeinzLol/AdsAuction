@@ -33,3 +33,4 @@ if __name__ == '__main__':
     start = perf_counter()
     asyncio.run(main(request_num))
     logger.debug(f"{request_num} requests elapsed in {(perf_counter() - start) *1000}ms.")
+
