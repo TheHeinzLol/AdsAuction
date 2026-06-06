@@ -4,7 +4,6 @@ import logging
 from random import choice, choices, randint, sample
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
 
 CHANNELS = [
     "audio streaming",
@@ -161,7 +160,7 @@ def generate_portable_screen_user(
             k=randint(1, len(categories)))
     ssp_user_info["ad_size"] = choice(ad_sizes)
 
-    logger.debug(f"Generated user info: {ssp_user_info}")
+    logger.debug(f"Generated portable screen user info: {ssp_user_info}")
     return ssp_user_info
 
 def generate_speaker_user(categories: list[str]) -> dict:
@@ -171,7 +170,7 @@ def generate_speaker_user(categories: list[str]) -> dict:
     ssp_user_info["channel"] = "audio streaming"
     ssp_user_info["categories"] = sample(categories, k=randint(1, len(categories)))
     ssp_user_info["ad_size"]= None
-    logger.debug(f"Generated user info: {ssp_user_info}")
+    logger.debug(f"Generated speaker user info: {ssp_user_info}")
     return ssp_user_info
 
 def generate_billboard_user(
@@ -183,21 +182,19 @@ def generate_billboard_user(
     ssp_user_info["channel"] = "billboard display"
     ssp_user_info["categories"] = sample(categories, k=randint(1, len(categories)))
     ssp_user_info["ad_size"]= choice(ad_sizes)
-    logger.debug(f"Generated user info: {ssp_user_info}")
+    logger.debug(f"Generated billboard user info: {ssp_user_info}")
     return ssp_user_info
 
 def generate_ssp_user(idx: int):
-    ssp_user_info = choices(
-            [
-                generate_portable_screen_user(CHANNELS,
-                                              CATEGORIES,
-                                              PLACEMENT_TYPES,
-                                              AD_SIZES),
-                generate_speaker_user(CATEGORIES),
-                generate_billboard_user(CATEGORIES, AD_SIZES)
-                ],
-            weights=[0.8, 0.1, 0.1],
-            k=1)[0]
+    # this is needed so that python does not run all generate_*_user 
+    # functions before random.choices chooses one
+    generators = [
+        lambda: generate_portable_screen_user(CHANNELS, CATEGORIES, PLACEMENT_TYPES, AD_SIZES),
+        lambda: generate_speaker_user(CATEGORIES),
+        lambda: generate_billboard_user(CATEGORIES, AD_SIZES)
+    ]
+    chosen_generator = choices(generators, weights=[0.8, 0.1, 0.1], k=1)[0]
+    ssp_user_info = chosen_generator()
     ssp_user_info['id'] = idx
     return ssp_user_info
 

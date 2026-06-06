@@ -27,44 +27,71 @@ services:
       - AdAuctionNetwork
     restart: on-failure
 
-  prometheus:
-    image: prom/prometheus:main
+  dsp_fapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "9090:9090"
+      - "8001:8001"
     volumes:
-      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yaml'
-    networks:
-      - AdAuctionNetwork
-    depends_on:
-      exchange_fapi:
-        condition: service_healthy
-
-  grafana:
-    image: grafana/grafana:main-distroless-slim
-    ports:
-      - "3000:3000"
+      # Mount source code for development (hot reload)
+      - ./app/DSP:/AdsAuction/app/DSP
+    env_file:
+      - ./.env
     environment:
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel
-    volumes:
-      - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
-      - grafanadata:/var/lib/grafana
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD", "python", "-c",
+      "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 86400s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+#    depends_on:
+#      db:
+#        condition: service_healthy
     networks:
       - AdAuctionNetwork
-    depends_on:
-      prometheus:
-        condition: service_started
+    restart: on-failure
 
-#  redis:
-#    image: redis:8.6
+#  prometheus:
+#    image: prom/prometheus:main
+#    ports:
+#      - "9090:9090"
 #    volumes:
-#      - redis_data:/AdsAuction/app/exchange/redis
-#    ports: 
-#      - "6379:6379"
+#      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
+#    command:
+#      - '--config.file=/etc/prometheus/prometheus.yaml'
 #    networks:
 #      - AdAuctionNetwork
-#    restart: on-failure
+#    depends_on:
+#      exchange_fapi:
+#        condition: service_healthy
+
+#  grafana:
+#    image: grafana/grafana:main-distroless-slim
+#    ports:
+#      - "3000:3000"
+#    environment:
+#      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+#    volumes:
+#      - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+#      - grafanadata:/var/lib/grafana
+#    networks:
+#      - AdAuctionNetwork
+#    depends_on:
+#      prometheus:
+#        condition: service_started
+
+  redis:
+    image: redis:8.6
+    volumes:
+      - redis_data:/AdsAuction/app/exchange/redis
+    ports: 
+      - "6379:6379"
+    networks:
+      - AdAuctionNetwork
+    restart: on-failure
 
 #   PostgreSQL Database
 #  db:
@@ -101,6 +128,6 @@ networks:
     driver: bridge
 
 volumes:
-  grafanadata:
+#  grafanadata:
 #  AdAuctionPostgres:
-#  redis_data:
+  redis_data:
