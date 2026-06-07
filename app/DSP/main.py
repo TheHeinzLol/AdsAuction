@@ -4,10 +4,19 @@ from random import uniform
 
 app = FastAPI(title='DSP FastAPI')
 
-@app.post('bid_request')
-async def send_bid(user_info):
+@app.get('/')
+def get_root():
+    return {'ass':'twat'}
+
+@app.get('/healthz')
+def health_check():
+    return {"status": "healty"}
+
+@app.post('/bid_request')
+async def send_bid():
     return {
             "bidder": "bidder_id",
-            "bid": uniform(0.5,100),
-            "creative_url": "mock_creative_url"
+            "bid_amount": round(uniform(0.5,100), 2),
+            "creative_url": "DSP_mock_creative_url"
             }
+    

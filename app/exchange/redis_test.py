@@ -11,13 +11,14 @@ async def test_redis():
         )
         
         # Test write
-        await redis.set("test_key", "Hello Redis!")
+        key = 'test_key'
+        await redis.set(key, "Hello Redis!")
         
         # Test read
-        value = await redis.get("dsps")
+        value = await redis.get("auction_logs")
         
         print(f"✅ Redis connection successful!")
-        print(f"   Wrote 'test_key', read back: {value}")
+        print(f"   Wrote '{key}', read back: {value}")
         
         # Clean up
         await redis.delete("test_key")

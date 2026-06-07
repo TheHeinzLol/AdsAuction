@@ -38,11 +38,10 @@ services:
       - ./app/DSP:/AdsAuction/app/DSP
     env_file:
       - ./.env
-    environment:
-      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    command: fastapi dev app/DSP/main.py --host 0.0.0.0 --port 8001
     healthcheck:
       test: ["CMD", "python", "-c",
-      "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      "import urllib.request; urllib.request.urlopen('http://localhost:8001/healthz')"]
       interval: 86400s
       timeout: 5s
       retries: 3
