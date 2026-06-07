@@ -57,7 +57,6 @@ async def respond_to_ad_request(user_info: SSPUserInfoSchema):
 
     bids = []
     for resp in responses:
-        print('================RESP==============: ', type(resp))
         if resp and resp.get("bid_amount"):
             bids.append(resp)
         else:
@@ -76,7 +75,7 @@ async def respond_to_ad_request(user_info: SSPUserInfoSchema):
     user_info_json['ad_url'] = winner['creative_url']
     return user_info_json
 
-async def send_bid_request(dsp, user_info):
+async def send_bid_request(dsp, user_info) -> dict:
     url = dsp['url']
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json=user_info) as response:
