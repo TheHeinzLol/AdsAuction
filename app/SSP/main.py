@@ -1,12 +1,13 @@
 import asyncio
 import aiohttp
+import json
 import logging
 import sys
+
 from time import perf_counter
 
-import json
-
 from generate_ssp_user import generate_ssp_user
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
@@ -34,7 +35,6 @@ async def main(request_num: int):
     async with aiohttp.ClientSession() as client:
         htmls = await fetch_all(client, urls)
     resp = htmls[0]
-    print(resp)
 
 if __name__ == '__main__':
     request_num = int(sys.argv[1])

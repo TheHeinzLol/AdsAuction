@@ -1,6 +1,4 @@
-from datetime import datetime
-from pydantic import AfterValidator, BaseModel, EmailStr, Field
-from typing import Annotated
+from pydantic import BaseModel
 
 # SSP schemas
 class SSPUserInfoSchema(BaseModel):
@@ -19,16 +17,4 @@ class SSPResponseSchema(SSPUserInfoSchema):
     """Same data which exchange got but with ads URL"""
     ad_url: str
 
-class UserBaseSchema(BaseModel):
-    email: EmailStr = Field(max_length=50)
-    login: str = Field(min_length=3, max_length=20)
 
-class UserCreateSchema(UserBaseSchema):
-    password: str = Field(min_length=3, max_length=20)
-
-class UserResponseSchema(UserBaseSchema):
-    date_created: datetime
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str

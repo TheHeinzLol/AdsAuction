@@ -67,14 +67,14 @@ country_list = list(countries_languages.keys())
 
 # helper functions
 def check_argument_length(channels, categories, placement_types) -> None:
-    if len(channels) == 0 or len(categories) == 0 or len(placement_types) == 0:
+    if not (channels and categories and placement_types):
         raise ValueError(f"""channels, categories, and placement types must be greater than 0.
         Got: channels len = {len(channels)},
         categories len = {len(categories)},
         placements_type len = {len(placement_types)}""")
 
 def generate_base() -> dict:
-    """Returns basic user info: region, local time, and language"""
+    """Returns basic user info: local time, region, and language"""
     # generate local time
     local_hour = randint(0, 23)
     # generate region
@@ -116,8 +116,6 @@ def weighted_sample_without_replacement(items: list, weights: list[float], k: in
     if k > len(items):
         raise ValueError(f"k must be not greater than length of item list. Got k={k},"\
                 "item list length={len(items)}")
-    items = items[:]
-    weights = weights[:]
 
     selected = []
 
