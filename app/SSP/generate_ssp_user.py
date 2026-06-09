@@ -115,8 +115,10 @@ def weighted_sample_without_replacement(items: list, weights: list[float], k: in
         raise ValueError(f"Items and weights must have same length. Got {len(items)} and {len(weights)}")
     if k > len(items):
         raise ValueError(f"k must be not greater than length of item list. Got k={k},"\
-                "item list length={len(items)}")
-
+                f"item list length={len(items)}")
+    # copy so that original lists are not edited
+    items = items[:]
+    weights = weights[:]
     selected = []
 
     for _ in range(k):
@@ -138,7 +140,9 @@ def generate_portable_screen_user(
                                 placement_types: list[str],
                                 ad_sizes: list[list[int]]
 ) -> dict:
+    print(f'channels at start: {channels}')
     check_argument_length(channels, categories, placement_types)
+    print(f'channels after check: {channels}')
     # weights to base generation on
     weights_channels = [0.1, 0.1, 0.3, 0.3, 0.1] 
     # generating user info

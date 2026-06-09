@@ -53,34 +53,34 @@ services:
       - AdAuctionNetwork
     restart: on-failure
 
-#  prometheus:
-#    image: prom/prometheus:main
-#    ports:
-#      - "9090:9090"
-#    volumes:
-#      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
-#    command:
-#      - '--config.file=/etc/prometheus/prometheus.yaml'
-#    networks:
-#      - AdAuctionNetwork
-#    depends_on:
-#      exchange_fapi:
-#        condition: service_healthy
+  prometheus:
+    image: prom/prometheus:main
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+    networks:
+      - AdAuctionNetwork
+    depends_on:
+      exchange_fapi:
+        condition: service_healthy
 
-#  grafana:
-#    image: grafana/grafana:main-distroless-slim
-#    ports:
-#      - "3000:3000"
-#    environment:
-#      - GF_INSTALL_PLUGINS=grafana-piechart-panel
-#    volumes:
-#      - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
-#      - grafanadata:/var/lib/grafana
-#    networks:
-#      - AdAuctionNetwork
-#    depends_on:
-#      prometheus:
-#        condition: service_started
+  grafana:
+    image: grafana/grafana:main-distroless-slim
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - ./datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - grafanadata:/var/lib/grafana
+    networks:
+      - AdAuctionNetwork
+    depends_on:
+      prometheus:
+        condition: service_started
 
   redis:
     image: redis:8.6
