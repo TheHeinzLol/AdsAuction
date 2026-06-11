@@ -4,7 +4,7 @@ import json
 import logging
 import sys
 
-from time import perf_counter
+from time import perf_counter, sleep
 
 from generate_ssp_user import generate_ssp_user
 
@@ -32,9 +32,10 @@ async def fetch_all(client, urls):
 
 async def main(request_num: int):
     urls = range(0, request_num)
-    async with aiohttp.ClientSession() as client:
-        htmls = await fetch_all(client, urls)
-    resp = htmls[0]
+    while True:
+        async with aiohttp.ClientSession() as client:
+            htmls = await fetch_all(client, urls)
+        sleep(5)
 
 if __name__ == '__main__':
     request_num = int(sys.argv[1])

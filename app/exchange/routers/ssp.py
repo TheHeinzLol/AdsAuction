@@ -4,7 +4,8 @@ from datetime import datetime
 from fastapi import APIRouter, Path
 from typing import Annotated
 
-from ..schemas.schemas import SSPUserInfoSchema, SSPResponseSchema
+from app.exchange.schemas.schemas import SSPUserInfoSchema, SSPResponseSchema
+from app.exchange.middleware.metrics import REQUESTS_BY_DEVICE, REQUESTS_BY_REGION
 router = APIRouter()
 
 @router.get('/SSP/{id}')
@@ -38,8 +39,12 @@ async def get_redis():
 
 @router.post('/ad_request', response_model=SSPResponseSchema)
 async def respond_to_ad_request(user_info: SSPUserInfoSchema):
+    # Provide prometheus with data
+    REQUESTS_BY_DEVICE.labels(device=user_info.device).inc()
+    REQUESTS_BY_REGION.labels(region=user_info.region).inc()
     # convert info to dict
     user_info_json = user_info.model_dump()
+    
 
     # create client 
     try:

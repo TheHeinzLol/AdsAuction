@@ -127,6 +127,6 @@ networks:
     driver: bridge
 
 volumes:
-#  grafanadata:
+  grafanadata:
 #  AdAuctionPostgres:
   redis_data:

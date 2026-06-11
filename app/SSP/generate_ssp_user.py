@@ -140,9 +140,7 @@ def generate_portable_screen_user(
                                 placement_types: list[str],
                                 ad_sizes: list[list[int]]
 ) -> dict:
-    print(f'channels at start: {channels}')
     check_argument_length(channels, categories, placement_types)
-    print(f'channels after check: {channels}')
     # weights to base generation on
     weights_channels = [0.1, 0.1, 0.3, 0.3, 0.1] 
     # generating user info
