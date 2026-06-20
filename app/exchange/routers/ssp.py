@@ -1,11 +1,13 @@
 import json
 
 from datetime import datetime
-from fastapi import APIRouter, Path
+from fastapi import APIRouter, Depends, Path, Request
 from typing import Annotated
 
+from app.exchange.dependencies.dsp import get_dsp_keys
 from app.exchange.schemas.schemas import SSPUserInfoSchema, SSPResponseSchema
 from app.exchange.middleware.metrics import REQUESTS_BY_DEVICE, REQUESTS_BY_REGION
+
 router = APIRouter()
 
 @router.get('/SSP/{id}')
@@ -19,33 +21,18 @@ async def respond_ssp(id: int):
 # Redis client !!! Inject Later !!!
 import aiohttp
 import asyncio
-from redis import asyncio as aioredis
-redis_client = None
-
-DSP_ENDPOINTS = [
-        {
-            "dsp_id": "dsp_1",
-            "url": "http://dsp_fapi:8001/bid_request",
-            "api_key": "key_1"
-        }
-]
-
-async def get_redis():
-    global redis_client
-    if redis_client is None:
-        redis_client = await aioredis.from_url('redis://redis:6379', decode_responses=True)
-    return redis_client
-
 
 @router.post('/ad_request', response_model=SSPResponseSchema)
-async def respond_to_ad_request(user_info: SSPUserInfoSchema):
+async def respond_to_ad_request(
+        user_info: SSPUserInfoSchema,
+        api_keys: dict = Depends(get_dsp_keys)
+        ):
     # Provide prometheus with data
     REQUESTS_BY_DEVICE.labels(device=user_info.device).inc()
     REQUESTS_BY_REGION.labels(region=user_info.region).inc()
     # convert info to dict
     user_info_json = user_info.model_dump()
     
-
     # create client 
     try:
         redis = await get_redis()

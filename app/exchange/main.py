@@ -2,7 +2,7 @@ import aiohttp
 from fastapi import FastAPI
 
 from contextlib import asynccontextmanager
-from app.exchange.database.database import async_engine, DBSession
+from app.exchange.dependencies.database import async_engine, DBSession
 from app.exchange.middleware.metrics import setup_prometheus
 from app.exchange.models.models import Base
 from app.exchange.routers.ssp import router as ssp_router
@@ -48,6 +48,3 @@ def get_root():
 def health_check():
     return {"status": "healty"}
 
-@app.get('/check_keys')
-def keys():
-    return app.state.api_keys

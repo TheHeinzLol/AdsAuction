@@ -36,6 +36,7 @@ def get_api_keys():
 
 @app.post('/bid_request')
 async def send_bid():
+    #check api keys
     return {
             "bidder": "bidder_id",
             "bid_amount": round(uniform(0.5,100), 2),

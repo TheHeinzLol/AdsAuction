@@ -20,9 +20,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
-#    depends_on:
-#      db:
-#        condition: service_healthy
+    depends_on:
+      db:
+        condition: service_healthy
+      dsp_fapi:
+        condition: service_healthy
     networks:
       - AdAuctionNetwork
     restart: on-failure
@@ -46,9 +48,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
-#    depends_on:
-#      db:
-#        condition: service_healthy
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - AdAuctionNetwork
     restart: on-failure
