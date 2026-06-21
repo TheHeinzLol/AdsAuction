@@ -4,28 +4,18 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Path, Request
 from typing import Annotated
 
-from app.exchange.dependencies.dsp import get_dsp_keys
 from app.exchange.schemas.schemas import SSPUserInfoSchema, SSPResponseSchema
 from app.exchange.middleware.metrics import REQUESTS_BY_DEVICE, REQUESTS_BY_REGION
 
 router = APIRouter()
 
-@router.get('/SSP/{id}')
-async def respond_ssp(id: int):
-        return {
-                'id': id,
-                'ad_url': f"http://localhost:8000/SSP/{id}",
-                'date_shown': datetime.utcnow()
-                }
-
-# Redis client !!! Inject Later !!!
 import aiohttp
 import asyncio
 
 @router.post('/ad_request', response_model=SSPResponseSchema)
 async def respond_to_ad_request(
         user_info: SSPUserInfoSchema,
-        api_keys: dict = Depends(get_dsp_keys)
+        request: Request
         ):
     # Provide prometheus with data
     REQUESTS_BY_DEVICE.labels(device=user_info.device).inc()
@@ -35,12 +25,11 @@ async def respond_to_ad_request(
     
     # create client 
     try:
-        redis = await get_redis()
+        redis = request.app.state.redis 
     except Exception as e:
-        print('Failed to get redis client: ', e)
+        print(f'Failed to get redis client: {e}')
 
     # Get list of active DSPs
-    dsp_list = await redis.get('dsp_list')
     # make async bid requests to all DSPs
     if not dsp_list:
         dsp_list = DSP_ENDPOINTS
