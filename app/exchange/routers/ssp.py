@@ -30,9 +30,8 @@ async def respond_to_ad_request(
         print(f'Failed to get redis client: {e}')
 
     # Get list of active DSPs
+    pass
     # make async bid requests to all DSPs
-    if not dsp_list:
-        dsp_list = DSP_ENDPOINTS
     tasks = [send_bid_request(dsp, user_info_json) for dsp in dsp_list]
     responses = await asyncio.gather(*tasks)
 
