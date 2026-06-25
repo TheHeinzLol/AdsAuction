@@ -16,10 +16,11 @@ class Auction(Base):
             default=None
             )
     winning_bid: Mapped[float] = mapped_column(Float, nullable=True)
-    time_created: Mapped[datetime] = mapped_colum(
+    time_created: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
             nullable=False
-    time_closed: Mapped[datetime] = mapped_colum(
+            )
+    time_closed: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
             nullable=False
             )

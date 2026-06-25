@@ -3,20 +3,36 @@ import os
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from fastapi import FastAPI
+from fastapi import Body, FastAPI
 from random import uniform
+num_dsp = 5
+dsp_list = [f'dsp_{i}' for i in range(num_dsp)]
+VALID_KEYS ={}
 
-dsp_list = [f'dsp_{i}' for i in range(3)]
-VALID_KEYS = {}
+async def dsp_action(payload: dict = Body(...)):
+
+    return {
+            "bidder": "bidder_id",
+            "bid_amount": round(uniform(0.5,100), 2),
+            "creative_url": "DSP_mock_creative_url"
+            }
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    #generating api keys
-    for dsp in dsp_list:
-        VALID_KEYS[dsp] = {
-                'key': secrets.token_urlsafe(16),
-                'created_at': datetime.now(timezone.utc).isoformat(),
-                }
+    #create dsp enpoints
+    try:
+        for dsp in dsp_list:
+            app.add_api_route(f"/{dsp}", dsp_action, methods=["POST"])
+            #generating api keys
+            VALID_KEYS[dsp] = {
+                    'key': secrets.token_urlsafe(16),
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                    }
+    except Exception as e:
+        print(f"Failed to create dsp endpoints: {e}")
+    else:
+        print("Success: Created dsp endpoints")
+    print(f"Valid keys are: {VALID_KEYS}")
     yield
     
 app = FastAPI(title='DSP FastAPI', lifespan=lifespan)
@@ -43,5 +59,4 @@ async def send_bid():
             "creative_url": "DSP_mock_creative_url"
             }
 
-# secreta
 
