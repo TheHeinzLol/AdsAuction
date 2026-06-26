@@ -3,15 +3,16 @@ import os
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, Request
 from random import uniform
 num_dsp = 5
 dsp_list = [f'dsp_{i}' for i in range(num_dsp)]
 VALID_KEYS ={}
 
-async def dsp_action(payload: dict = Body(...)):
-
+async def dsp_action(request:Request, payload: dict = Body()):
+    dsp_id = request.url.path.split("/")[-1]
     return {
+            "dsp_id": dsp_id,
             "bidder": "bidder_id",
             "bid_amount": round(uniform(0.5,100), 2),
             "creative_url": "DSP_mock_creative_url"

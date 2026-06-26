@@ -55,7 +55,9 @@ async def respond_to_ad_request(
     #=========
     #=========
 
+    user_info_json['bid_amount'] = winner['bid_amount'] 
     user_info_json['ad_url'] = winner['creative_url']
+    user_info_json['dsp_id'] = winner['dsp_id'] 
     return user_info_json
 
 async def send_bid_request(dsp, user_info) -> dict:
