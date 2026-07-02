@@ -67,8 +67,9 @@ async def fetch_api_keys() -> dict:
 
 async def save_keys_to_redis(redis, api_keys: dict):
     try:
-        for dsp_id, key_info in api_keys.items():
-            await redis.hset("dsp:api_keys", dsp_id, key_info["key"])
+        for key, dsp_id in api_keys.items():
+            print(dsp_id, key)
+            await redis.hset("dsp:api_keys", dsp_id["dsp"], key)
         print("Successfully saved api keys to redis cache")
     except Exception as e:
        print(f"failed to save keys to Redis: {e}")

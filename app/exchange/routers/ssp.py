@@ -35,7 +35,7 @@ async def respond_to_ad_request(
     # Get list of active DSPs
     dsp_list = list((await redis.hgetall("dsp:api_keys")).keys())
     # make async bid requests to all DSPs
-    tasks = [send_bid_request(dsp, user_info_json) for dsp in dsp_list]
+    tasks = [send_bid_request(redis, dsp, user_info_json) for dsp in dsp_list]
     responses = await asyncio.gather(*tasks)
 
     bids = []
@@ -60,10 +60,19 @@ async def respond_to_ad_request(
     user_info_json['dsp_id'] = winner['dsp_id'] 
     return user_info_json
 
-async def send_bid_request(dsp, user_info) -> dict:
+async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
+    if redis is None:
+        api_key = "my_spare_key"
+    else:
+        api_key = await redis.hget('dsp:api_keys', dsp)
+    timeout_seconds = timeout_ms / 1000.0
     url = f"http://dsp_fapi:8001/{dsp}"
     async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=user_info) as response:
+        async with session.post(url,
+                                json=user_info,
+                                headers={"X-API-Key": api_key},
+                                timeout=aiohttp.ClientTimeout(total=timeout_seconds
+                                                              )) as response:
             response_body = await response.text()
             response_body = json.loads(response_body)
             if response.status != 200:

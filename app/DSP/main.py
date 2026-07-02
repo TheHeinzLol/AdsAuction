@@ -3,14 +3,33 @@ import os
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from fastapi import Body, FastAPI, Request
+from fastapi import Body, FastAPI, Header, HTTPException, Request
 from random import uniform
 num_dsp = 5
 dsp_list = [f'dsp_{i}' for i in range(num_dsp)]
 VALID_KEYS ={}
 
-async def dsp_action(request:Request, payload: dict = Body()):
+async def dsp_action(
+        request: Request,
+        payload: dict = Body(),
+        x_api_key: str = Header()
+):
+    #checks for api keys are separated for testing purposes,
+    #but response should not specify if the key is not valid or dsp does not match
+    if x_api_key not in VALID_KEYS:
+        raise HTTPException(
+                status_code=401,
+                detail="Invalid API key"
+            )
+
     dsp_id = request.url.path.split("/")[-1]
+
+    if VALID_KEYS[x_api_key]['dsp'] != dsp_id:
+        raise HTTPException(
+                status_code=403,
+                detail="API key does not match this DSP"
+            )
+
     return {
             "dsp_id": dsp_id,
             "bidder": "bidder_id",
@@ -25,8 +44,8 @@ async def lifespan(app: FastAPI):
         for dsp in dsp_list:
             app.add_api_route(f"/{dsp}", dsp_action, methods=["POST"])
             #generating api keys
-            VALID_KEYS[dsp] = {
-                    'key': secrets.token_urlsafe(16),
+            VALID_KEYS[secrets.token_urlsafe(16)] = {
+                    'dsp': dsp,
                     'created_at': datetime.now(timezone.utc).isoformat(),
                     }
     except Exception as e:
