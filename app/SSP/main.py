@@ -18,7 +18,7 @@ async def make_ad_request(client: aiohttp.ClientSession, idx: int):
         ) as response:
         response_body = await response.text()
         if response.status != 200:
-            logger.debug(f"response: {response_body}")
+            logger.info(f"Failed to make ad request. Got response:\n {response_body}")
         return {
                 'status': response.status,
                 'body': response_body,

@@ -1,7 +1,7 @@
 import uuid
 
 from datetime import datetime
-from sqlalchemy import DateTime, Float, Integer, Uuid
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 class Base(DeclarativeBase):
@@ -9,13 +9,9 @@ class Base(DeclarativeBase):
 
 class Auction(Base):
     __tablename__ = "auctions"
-    id: Mapped[int] = mapped_column(primary_key = True)
-    winner: Mapped[uuid.UUID] = mapped_column(
-            Uuid(as_uuid=True, native_uuid=True),
-            nullable=True,
-            default=None
-            )
-    winning_bid: Mapped[float] = mapped_column(Float, nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    winner: Mapped[str] = mapped_column(String)
+    winning_bid: Mapped[float] = mapped_column(Float)
     time_created: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
             nullable=False
@@ -24,4 +20,18 @@ class Auction(Base):
             DateTime(timezone=True),
             nullable=False
             )
-    
+    user_context: Mapped[str] = mapped_column(String)
+
+class Bid(Base):
+    __tablename__ = "bids"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    auction_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    time_sent: Mapped[datetime] = mapped_column(
+            DateTime(timezone=True),
+            nullable=False
+            )
+    time_ms_response: Mapped[int] = mapped_column(Integer, nullable=False)
+    bid_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    is_winning: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    dsp_url: Mapped[str] = mapped_column(String, nullable=False)
+

@@ -1,3 +1,4 @@
+import logging
 import secrets
 import os
 
@@ -5,6 +6,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import Body, FastAPI, Header, HTTPException, Request
 from random import uniform
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+
 num_dsp = 5
 dsp_list = [f'dsp_{i}' for i in range(num_dsp)]
 VALID_KEYS ={}
@@ -52,7 +57,7 @@ async def lifespan(app: FastAPI):
         print(f"Failed to create dsp endpoints: {e}")
     else:
         print("Success: Created dsp endpoints")
-    print(f"Valid keys are: {VALID_KEYS}")
+        print(f"Valid keys are:\n{VALID_KEYS}")
     yield
     
 app = FastAPI(title='DSP FastAPI', lifespan=lifespan)
@@ -74,7 +79,6 @@ def get_api_keys():
 async def send_bid():
     #check api keys
     return {
-            "bidder": "bidder_id",
             "bid_amount": round(uniform(0.5,100), 2),
             "creative_url": "DSP_mock_creative_url"
             }

@@ -33,21 +33,27 @@ async def respond_to_ad_request(
         print(f'Failed to get redis client: {e}')
 
     # Get list of active DSPs
-    dsp_list = list((await redis.hgetall("dsp:api_keys")).keys())
+    if redis:
+        dsp_list = list((await redis.hgetall("dsp:api_keys")).keys())
+    else:
+        raise ValueError("No redis instance is initiated")
     # make async bid requests to all DSPs
     tasks = [send_bid_request(redis, dsp, user_info_json) for dsp in dsp_list]
     responses = await asyncio.gather(*tasks)
 
     bids = []
+
+    if not bids:
+        user_info_json['bid_amount'] = -1
+        user_info_json['ad_url'] = "ssp.py ad placeholder"
+        user_info_json['dsp_id'] = "no dsp sent a bid"
+        return SSPResponseSchema(**user_info_json)
+
     for resp in responses:
         if resp and resp.get("bid_amount"):
             bids.append(resp)
         else:
             continue
-
-    if not bids:
-        user_info_json['ad_url'] = "ssp.py ad placeholder"
-        return SSPResponseSchema(**user_info_json)
 
     winner = max(bids, key=lambda b: b['bid_amount'])
 
@@ -76,5 +82,5 @@ async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
             response_body = await response.text()
             response_body = json.loads(response_body)
             if response.status != 200:
-                logger.debug(f"send_bid_request response: {response_body}")
+                logger.debug(f"Failed to retrieve bid request response:\n {response_body}")
             return response_body
