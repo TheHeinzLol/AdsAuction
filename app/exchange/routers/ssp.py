@@ -2,6 +2,8 @@ import aiohttp
 import asyncio
 import json
 import logging
+import time
+import uuid
 
 from datetime import datetime
 from fastapi import APIRouter, Depends, Path, Request
@@ -25,7 +27,7 @@ async def respond_to_ad_request(
     REQUESTS_BY_REGION.labels(region=user_info.region).inc()
     # convert info to dict
     user_info_json = user_info.model_dump()
-    
+
     # create client 
     try:
         redis = request.app.state.redis 
@@ -37,14 +39,18 @@ async def respond_to_ad_request(
         dsp_list = list((await redis.hgetall("dsp:api_keys")).keys())
     else:
         raise ValueError("No redis instance is initiated")
+        # or should I make a list of spare dsp urls for that case?
+    # create a uuid for an auction
+    auction_uuid = uuid.uuid4()
     # make async bid requests to all DSPs
-    tasks = [send_bid_request(redis, dsp, user_info_json) for dsp in dsp_list]
+    tasks = [send_bid_request(redis, dsp, user_info_json, auction_uuid) for dsp in dsp_list]
     responses = await asyncio.gather(*tasks)
 
     bids = []
 
     if not bids:
-        user_info_json['bid_amount'] = -1
+        # impossible bid to match Float field in db yet to know there was no bid
+        user_info_json['bid_amount'] = -1.0
         user_info_json['ad_url'] = "ssp.py ad placeholder"
         user_info_json['dsp_id'] = "no dsp sent a bid"
         return SSPResponseSchema(**user_info_json)
@@ -57,30 +63,32 @@ async def respond_to_ad_request(
 
     winner = max(bids, key=lambda b: b['bid_amount'])
 
-    # ADD LOGGING HERE
-    #=========
-    #=========
-
+    # start of caching auction and bids to redis
+    pass
+    # end of caching auction and bids to redis
     user_info_json['bid_amount'] = winner['bid_amount'] 
     user_info_json['ad_url'] = winner['creative_url']
     user_info_json['dsp_id'] = winner['dsp_id'] 
-    return user_info_json
+    return SSPResponseSchema(**user_info_json)
 
-async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
+async def send_bid_request(redis, dsp, user_info, auction_uuid, timeout_ms=50) -> dict:
     if redis is None:
         api_key = "my_spare_key"
     else:
         api_key = await redis.hget('dsp:api_keys', dsp)
     timeout_seconds = timeout_ms / 1000.0
     url = f"http://dsp_fapi:8001/{dsp}"
+    time_sent = time.time()
     async with aiohttp.ClientSession() as session:
         async with session.post(url,
                                 json=user_info,
                                 headers={"X-API-Key": api_key},
-                                timeout=aiohttp.ClientTimeout(total=timeout_seconds
-                                                              )) as response:
+                                timeout=aiohttp.ClientTimeout(total=timeout_seconds)
+                                ) as response:
             response_body = await response.text()
+            time_received = time.time()
             response_body = json.loads(response_body)
             if response.status != 200:
                 logger.debug(f"Failed to retrieve bid request response:\n {response_body}")
+            time_response = time_received - time_sent
             return response_body

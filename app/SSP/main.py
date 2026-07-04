@@ -35,7 +35,7 @@ async def main(request_num: int):
     while True:
         async with aiohttp.ClientSession() as client:
             htmls = await fetch_all(client, urls)
-        print(htmls)
+        logger.debug(f"Got responses: {htmls}")
         sleep(5)
 
 if __name__ == '__main__':
