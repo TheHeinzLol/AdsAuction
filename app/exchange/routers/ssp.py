@@ -51,8 +51,8 @@ async def respond_to_ad_request(
     bids = []
 
     for resp in responses:
-        if resp[auction_uuid].get("bid_amount"):
-            bids.append(resp[auction_uuid])
+        if resp.get("bid_amount"):
+            bids.append(resp)
         else:
             continue
 
@@ -69,7 +69,10 @@ async def respond_to_ad_request(
     time_auc_ended = time.time()
     # mark bid as winning 
     winner["is_winning"] = True 
-    # start of caching auction and bids to redis
+    # chaching bids to redis
+    for bid in bids:
+        await redis.hset("bid:bid_data", auction_id, bid)
+    # caching auction to redis
     auc_data = {
                 "id": auction_uuid,
                 "winner": winner["dsp_id"],
@@ -78,8 +81,8 @@ async def respond_to_ad_request(
                 "time_closed": time_auc_ended,
                 "user_context": user_info_json
                 }
-    redis.hset("auction_id:auc_data", auc_data)
-    # end of caching auction and bids to redis
+    await redis.hset("auction_id:auc_data", auction_id, auc_data)
+
     user_info_json['bid_amount'] = winner['bid_amount'] 
     user_info_json['ad_url'] = winner['creative_url']
     user_info_json['dsp_id'] = winner['dsp_id'] 
@@ -122,15 +125,14 @@ async def send_bid_request(redis, dsp, user_info, auction_uuid, timeout_ms=50) -
             time_response = time_received - time_sent
             
             bid_data = {
-                    auction_uuid: {
+                        "auction_uuid": auction_uuid,
                         "dsp_id": dps,
                         "time_sent": time_sent,
                         "time_received": time_received,
                         "time_response": time_response,
                         "bid_amount": response_body['bid_amount'],
-                        "creative_url": response_body["creative_url"]
+                        "creative_url": response_body["creative_url"],
                         "is_winning": False
-                    }
                 }
 
             return bid_data
