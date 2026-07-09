@@ -76,7 +76,7 @@ async def respond_to_ad_request(
     auc_data = {
                 "id": auction_uuid,
                 "winner": winner["dsp_id"],
-                "winning_bid": winner["bid_amount"]
+                "winning_bid": winner["bid_amount"],
                 "time_created": time_auc_started,
                 "time_closed": time_auc_ended,
                 "user_context": user_info_json

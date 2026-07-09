@@ -1,8 +1,9 @@
 import uuid
 
 from datetime import datetime
-from sqlalchemy import Boolean, DateTime, Float, JSONB, Integer, String, Uuid
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Uuid
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
     pass
@@ -25,7 +26,7 @@ class Auction(Base):
             )
     user_context: Mapped[str] = mapped_column(JSONB)
 
-    bids: Mapped[list('Bid')] = relatonship(back_populates="auction")
+    bids: Mapped[list('Bid')] = relationship(back_populates="auction")
 
 class Bid(Base):
     __tablename__ = "bids"
