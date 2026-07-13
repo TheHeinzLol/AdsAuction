@@ -46,3 +46,4 @@ class Bid(Base):
     dsp_url: Mapped[str] = mapped_column(String, nullable=False)
 
     auction: Mapped['Auction'] = relationship(back_populates="bids")
+

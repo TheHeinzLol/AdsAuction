@@ -1,7 +1,7 @@
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 
 from app.exchange.dependencies.redis import close_redis, get_redis
@@ -33,6 +33,13 @@ def get_root():
 @app.get('/healthz')
 def health_check():
     return {"status": "healthy"}
+
+@app.get('/update_keys')
+async def update_keys(request: Request):
+    """Manually refresh API keys from DSP without restarting."""
+    api_keys = await fetch_api_keys()
+    await save_keys_to_redis(request.app.state.redis, api_keys)
+    return {"status": "keys updated", "keys_loaded": len(api_keys)}
 
 # Helper functions
 async def create_database_tables():
@@ -76,3 +83,4 @@ async def save_keys_to_redis(redis, api_keys: dict):
     except Exception as e:
        print(f"Failed to save keys to Redis: {e}")
 # End of Helper functions
+

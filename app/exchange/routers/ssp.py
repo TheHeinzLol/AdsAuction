@@ -41,7 +41,7 @@ async def respond_to_ad_request(
         raise ValueError("No redis instance is initiated")
         # or should I make a list of spare dsp urls for that case?
     # create a uuid for an auction
-    auction_uuid = uuid.uuid4()
+    auction_uuid = str(uuid.uuid4())
     # take timestamp of auction start
     time_auc_started = time.time()
     # make async bid requests to all DSPs
@@ -70,8 +70,11 @@ async def respond_to_ad_request(
     # mark bid as winning 
     winner["is_winning"] = True 
     # chaching bids to redis
-    for bid in bids:
-        await redis.hset("bid:bid_data", auction_id, bid)
+    try:
+        for bid in bids:
+            await redis.hset("bid:bid_data", auction_uuid, bid)
+    except Exception as e:
+        print(f"\n=========================\nFailed to hset bids {bid}:\n{e}")
     # caching auction to redis
     auc_data = {
                 "id": auction_uuid,
@@ -81,7 +84,10 @@ async def respond_to_ad_request(
                 "time_closed": time_auc_ended,
                 "user_context": user_info_json
                 }
-    await redis.hset("auction_id:auc_data", auction_id, auc_data)
+    try:
+        await redis.hset("auction_id:auc_data", auction_uuid, auc_data)
+    except Exception as e:
+        print(f"\n=========================\nFailed to hset auction:\n{e}")
 
     user_info_json['bid_amount'] = winner['bid_amount'] 
     user_info_json['ad_url'] = winner['creative_url']
@@ -126,7 +132,7 @@ async def send_bid_request(redis, dsp, user_info, auction_uuid, timeout_ms=50) -
             
             bid_data = {
                         "auction_uuid": auction_uuid,
-                        "dsp_id": dps,
+                        "dsp_id": dsp,
                         "time_sent": time_sent,
                         "time_received": time_received,
                         "time_response": time_response,

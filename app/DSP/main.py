@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import secrets
 import os
@@ -34,7 +35,7 @@ async def dsp_action(
                 status_code=403,
                 detail="API key does not match this DSP"
             )
-
+    asyncio.sleep(1)
     return {
             "dsp_id": dsp_id,
             "bidder": "bidder_id",
