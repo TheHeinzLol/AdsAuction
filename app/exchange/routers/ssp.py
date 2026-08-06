@@ -72,12 +72,11 @@ async def respond_to_ad_request(
     # chaching bids to redis
     try:
         for bid in bids:
-            await redis.hset("bid:bid_data", auction_uuid, bid)
+            await redis.rpush(f"auction:{auction_uuid}:bids", json.dumps(bid))
     except Exception as e:
         print(f"\n=========================\nFailed to hset bids {bid}:\n{e}")
     # caching auction to redis
     auc_data = {
-                "id": auction_uuid,
                 "winner": winner["dsp_id"],
                 "winning_bid": winner["bid_amount"],
                 "time_created": time_auc_started,
@@ -85,7 +84,7 @@ async def respond_to_ad_request(
                 "user_context": user_info_json
                 }
     try:
-        await redis.hset("auction_id:auc_data", auction_uuid, auc_data)
+        await redis.hset(f"auction:{auction_uuid}", mapping=auc_data)
     except Exception as e:
         print(f"\n=========================\nFailed to hset auction:\n{e}")
 

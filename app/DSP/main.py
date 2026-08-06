@@ -38,7 +38,6 @@ async def dsp_action(
     asyncio.sleep(1)
     return {
             "dsp_id": dsp_id,
-            "bidder": "bidder_id",
             "bid_amount": round(uniform(0.5,100), 2),
             "creative_url": "DSP_mock_creative_url"
             }
