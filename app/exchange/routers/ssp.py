@@ -69,24 +69,29 @@ async def respond_to_ad_request(
     time_auc_ended = time.time()
     # mark bid as winning 
     winner["is_winning"] = True 
+    # caching auction to redis
+    auc_data = {
+            "winner": winner["dsp_id"],
+            "winning_bid": winner["bid_amount"],
+            "time_created": time_auc_started,
+            "time_closed": time_auc_ended,
+            "user_context": user_info_json
+            }
+    try:
+        await redis.hset(f"auction:{auction_uuid}", mapping=auc_data)
+    except Exception as e:
+        print(f"\n=========================\nFailed to hset auction:\n{e}")
     # chaching bids to redis
     try:
         for bid in bids:
             await redis.rpush(f"auction:{auction_uuid}:bids", json.dumps(bid))
     except Exception as e:
-        print(f"\n=========================\nFailed to hset bids {bid}:\n{e}")
-    # caching auction to redis
-    auc_data = {
-                "winner": winner["dsp_id"],
-                "winning_bid": winner["bid_amount"],
-                "time_created": time_auc_started,
-                "time_closed": time_auc_ended,
-                "user_context": user_info_json
-                }
+        print(f"\n=========================\nFailed to rpush bid {bid}:\n{e}")
+    # caching auction uuid for later bulk insert into database
     try:
-        await redis.hset(f"auction:{auction_uuid}", mapping=auc_data)
+        await redis.rpush("auction:to_process", auction_uuid)
     except Exception as e:
-        print(f"\n=========================\nFailed to hset auction:\n{e}")
+        print(f"\n=========================\nFailed to store auction uuid\n{e}")
 
     user_info_json['bid_amount'] = winner['bid_amount'] 
     user_info_json['ad_url'] = winner['creative_url']
