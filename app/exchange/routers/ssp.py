@@ -55,12 +55,27 @@ async def respond_to_ad_request(
             bids.append(resp)
         else:
             continue
-
+    # cache results in redis but send ad placeholder to the ssp
     if not bids:
-        # impossible bid to match Float field in db yet to know there was no bid
-        user_info_json['bid_amount'] = -1.0
-        user_info_json['ad_url'] = "ssp.py ad placeholder"
-        user_info_json['dsp_id'] = "no dsp sent a bid"
+        # set an impossible bid to match Float field in db yet to know there were no bids
+        time_auc_ended = time.time()
+
+        auc_data = {
+            "winner": None, 
+            "winning_bid": -1,
+            "time_created": time_auc_started,
+            "time_closed": time_auc_ended,
+            "user_context": json.dumps(user_info_json),
+            "creative_url": "no bids ad placeholder"
+            }
+
+        try:
+            await redis.hset(f"auction:{auction_uuid}", mapping=auc_data)
+        except Exception as e:
+            print(f"\n=========================\nFailed to hset auction:\n{e}"
+
+        user_info_json['ad_url'] = "no bids ad placeholder"
+
         return SSPResponseSchema(**user_info_json)
 
     winner = max(bids, key=lambda b: b['bid_amount'])
@@ -75,7 +90,8 @@ async def respond_to_ad_request(
             "winning_bid": winner["bid_amount"],
             "time_created": time_auc_started,
             "time_closed": time_auc_ended,
-            "user_context": user_info_json
+            "user_context": json.dumps(user_info_json),
+            "creative_url": winner["creative_url"]
             }
     try:
         await redis.hset(f"auction:{auction_uuid}", mapping=auc_data)
@@ -93,12 +109,10 @@ async def respond_to_ad_request(
     except Exception as e:
         print(f"\n=========================\nFailed to store auction uuid\n{e}")
 
-    user_info_json['bid_amount'] = winner['bid_amount'] 
     user_info_json['ad_url'] = winner['creative_url']
-    user_info_json['dsp_id'] = winner['dsp_id'] 
     return SSPResponseSchema(**user_info_json)
 
-async def send_bid_request(redis, dsp, user_info, auction_uuid, timeout_ms=50) -> dict:
+async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
     if redis is None:
         api_key = "my_spare_key"
     else:
@@ -135,7 +149,6 @@ async def send_bid_request(redis, dsp, user_info, auction_uuid, timeout_ms=50) -
             time_response = time_received - time_sent
             
             bid_data = {
-                        "auction_uuid": auction_uuid,
                         "dsp_id": dsp,
                         "time_sent": time_sent,
                         "time_received": time_received,

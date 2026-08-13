@@ -24,6 +24,7 @@ class Auction(Base):
             DateTime(timezone=True),
             nullable=False
             )
+    creative_url: Mapped[str] = mapped_column(String)
     user_context: Mapped[str] = mapped_column(JSONB)
 
     bids: Mapped[list('Bid')] = relationship(back_populates="auction")

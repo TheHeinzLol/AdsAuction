@@ -16,7 +16,5 @@ class SSPUserInfoSchema(BaseModel):
 class SSPResponseSchema(SSPUserInfoSchema):
     """Same data which exchange got but with ads URL"""
     ad_url: str
-    dsp_id: str
-    bid_amount: float
 
 
