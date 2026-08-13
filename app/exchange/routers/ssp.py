@@ -72,7 +72,7 @@ async def respond_to_ad_request(
         try:
             await redis.hset(f"auction:{auction_uuid}", mapping=auc_data)
         except Exception as e:
-            print(f"\n=========================\nFailed to hset auction:\n{e}"
+            print(f"\n=========================\nFailed to hset auction:\n{e}")
 
         user_info_json['ad_url'] = "no bids ad placeholder"
 
