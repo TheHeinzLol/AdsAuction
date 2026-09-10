@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 import secrets
 import os
 
@@ -35,7 +36,7 @@ async def dsp_action(
                 status_code=403,
                 detail="API key does not match this DSP"
             )
-    asyncio.sleep(1)
+    await asyncio.sleep(1)
     return {
             "dsp_id": dsp_id,
             "bid_amount": round(uniform(0.5,100), 2),
@@ -77,10 +78,20 @@ def get_api_keys():
 
 @app.post('/bid_request')
 async def send_bid():
-    #check api keys
-    return {
-            "bid_amount": round(uniform(0.5,100), 2),
-            "creative_url": "DSP_mock_creative_url"
-            }
-
+    """This will first choose to return bid or not to,
+    and then decide if the responce will take more than 50ms"""
+    # possible responses 
+    answers = [
+                {
+                "bid_amount": round(uniform(0.5,100), 2),
+                "creative_url": "DSP_mock_creative_url"
+                },
+                {"no":"bids"}
+            ]
+    # answer is the value we return with 10% chance of returning no bids
+    answer = choices[answers, weights=[0.9, 0.1], k=1][0]
+    # timeout roughly 1 call out of 10
+    if random.random() < 0.1:
+        await asyncio.sleep(0.05)
+    return answer
 

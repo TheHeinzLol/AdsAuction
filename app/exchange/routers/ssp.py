@@ -42,10 +42,16 @@ async def respond_to_ad_request(
         # or should I make a list of spare dsp urls for that case?
     # create a uuid for an auction
     auction_uuid = str(uuid.uuid4())
+    # caching auction uuid for later bulk insert into database
+    try:
+        await redis.rpush("auction:to_process", auction_uuid)
+    except Exception as e:
+        print(f"\n=========================\nFailed to store auction uuid:\n{e}")
+
     # take timestamp of auction start
     time_auc_started = time.time()
     # make async bid requests to all DSPs
-    tasks = [send_bid_request(redis, dsp, user_info_json, auction_uuid) for dsp in dsp_list]
+    tasks = [send_bid_request(redis, dsp, user_info_json) for dsp in dsp_list]
     responses = await asyncio.gather(*tasks)
 
     bids = []
@@ -57,42 +63,30 @@ async def respond_to_ad_request(
             continue
     # cache results in redis but send ad placeholder to the ssp
     if not bids:
-        # set an impossible bid to match Float field in db yet to know there were no bids
-        time_auc_ended = time.time()
-
+        user_info_json['ad_url'] = "no bids ad placeholder"
         auc_data = {
-            "winner": None, 
+            "winner": None,
             "winning_bid": -1,
-            "time_created": time_auc_started,
-            "time_closed": time_auc_ended,
-            "user_context": json.dumps(user_info_json),
             "creative_url": "no bids ad placeholder"
             }
-
-        try:
-            await redis.hset(f"auction:{auction_uuid}", mapping=auc_data)
-        except Exception as e:
-            print(f"\n=========================\nFailed to hset auction:\n{e}")
-
-        user_info_json['ad_url'] = "no bids ad placeholder"
-
-        return SSPResponseSchema(**user_info_json)
-
-    winner = max(bids, key=lambda b: b['bid_amount'])
-    
-    # timestamp of auc ending
-    time_auc_ended = time.time()
-    # mark bid as winning 
-    winner["is_winning"] = True 
-    # caching auction to redis
-    auc_data = {
+    else:
+        winner = max(bids, key=lambda b: b['bid_amount'])
+        # mark bid as winning 
+        winner["is_winning"] = True 
+        user_info_json['ad_url'] = winner['creative_url']
+        auc_data = {
             "winner": winner["dsp_id"],
             "winning_bid": winner["bid_amount"],
+            "creative_url": winner["creative_url"]
+            }
+    # timestamp of auc ending
+    time_auc_ended = time.time()
+    # caching auction to redis
+    auc_data.update({
             "time_created": time_auc_started,
             "time_closed": time_auc_ended,
             "user_context": json.dumps(user_info_json),
-            "creative_url": winner["creative_url"]
-            }
+            })
     try:
         await redis.hset(f"auction:{auction_uuid}", mapping=auc_data)
     except Exception as e:
@@ -103,13 +97,7 @@ async def respond_to_ad_request(
             await redis.rpush(f"auction:{auction_uuid}:bids", json.dumps(bid))
     except Exception as e:
         print(f"\n=========================\nFailed to rpush bid {bid}:\n{e}")
-    # caching auction uuid for later bulk insert into database
-    try:
-        await redis.rpush("auction:to_process", auction_uuid)
-    except Exception as e:
-        print(f"\n=========================\nFailed to store auction uuid\n{e}")
 
-    user_info_json['ad_url'] = winner['creative_url']
     return SSPResponseSchema(**user_info_json)
 
 async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
@@ -120,34 +108,18 @@ async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
     timeout_seconds = timeout_ms / 1000.0
     url = f"http://dsp_fapi:8001/{dsp}"
     time_sent = time.time()
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url,
-                                json=user_info,
-                                headers={"X-API-Key": api_key},
-                                timeout=aiohttp.ClientTimeout(total=timeout_seconds)
-                                ) as response:
-            try:
-                response_body = await response.text()
-            except Exception as e:
-                return {
-                        auction_uuid: {
-                            "dsp_id": dsp,
-                            "status": "Request failed",
-                            "error": str(e)
-                        }
-                    }
-            time_received = time.time()
-            response_body = json.loads(response_body)
-            if response.status != 200:
-                logger.debug(f"Failed to retrieve bid request response:\n {response_body}")
-                return {
-                        auction_uuid: {
-                            "dsp_id": dsp,
-                            "response_body": response_body
-                        }
-                    }
-            time_response = time_received - time_sent
-            
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url,
+                json=user_info,
+                headers={"X-API-Key": api_key},
+                timeout=timeout
+            ) as response:
+        response_body = await response.text()
+        time_response = time_received - time_sent
+        if 'bid amount' in response_body.keys() and
+        'creative_url' in response_body.keys():
             bid_data = {
                         "dsp_id": dsp,
                         "time_sent": time_sent,
@@ -156,6 +128,30 @@ async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
                         "bid_amount": response_body['bid_amount'],
                         "creative_url": response_body["creative_url"],
                         "is_winning": False
-                }
-
+            }
             return bid_data
+        else:
+            return {
+                    "dsp_id": dsp,
+                    "status": "bid error",
+                    "error": "no bids"
+                }
+    except asyncio.TimeoutError:
+        return {
+                "dsp_id": dsp,
+                "status": "timeout",
+                "error": f"Request timed out after {timeout_seconds}s"
+            }
+    except aiohttp.ClientError as e:
+        return {
+                "dsp_id": dsp,
+                "status": "client_error",
+                "error": str(e)
+            }
+    except Exception as e:
+        return {
+                "dsp_id": dsp,
+                "status": "unexpected_error",
+                "error": str(e)
+            }
+
