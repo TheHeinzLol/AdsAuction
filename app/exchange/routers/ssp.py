@@ -61,6 +61,7 @@ async def respond_to_ad_request(
             bids.append(resp)
         else:
             continue
+
     # cache results in redis but send ad placeholder to the ssp
     if not bids:
         user_info_json['ad_url'] = "no bids ad placeholder"
@@ -79,8 +80,10 @@ async def respond_to_ad_request(
             "winning_bid": winner["bid_amount"],
             "creative_url": winner["creative_url"]
             }
+
     # timestamp of auc ending
     time_auc_ended = time.time()
+
     # caching auction to redis
     auc_data.update({
             "time_created": time_auc_started,
@@ -91,6 +94,11 @@ async def respond_to_ad_request(
         await redis.hset(f"auction:{auction_uuid}", mapping=auc_data)
     except Exception as e:
         print(f"\n=========================\nFailed to hset auction:\n{e}")
+
+    # check if there are bids to cache and finish execution if there are none
+    if len(bids)==0:
+        return SSPResponseSchema(**user_info_json)
+
     # chaching bids to redis
     try:
         for bid in bids:
@@ -118,18 +126,21 @@ async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
             ) as response:
         response_body = await response.text()
         time_response = time_received - time_sent
-        if 'bid amount' in response_body.keys() and
-        'creative_url' in response_body.keys():
+        if 'bid amount' in response_body.keys():
             bid_data = {
                         "dsp_id": dsp,
                         "time_sent": time_sent,
                         "time_received": time_received,
                         "time_response": time_response,
                         "bid_amount": response_body['bid_amount'],
-                        "creative_url": response_body["creative_url"],
                         "is_winning": False
             }
-            return bid_data
+            if 'creative_url' in response_body.keys():
+                bid_data['creative_url'] = response_body['creative_url']
+                return bid_data
+            else if 'creative_url' not in response_body.keys()::
+                bid_data['creative_url'] = 'No ad url provided but bid is present'
+                return bid_data
         else:
             return {
                     "dsp_id": dsp,
