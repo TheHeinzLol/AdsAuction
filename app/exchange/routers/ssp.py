@@ -54,19 +54,20 @@ async def respond_to_ad_request(
     tasks = [send_bid_request(redis, dsp, user_info_json) for dsp in dsp_list]
     responses = await asyncio.gather(*tasks)
 
+    # collect valid bids
     bids = []
-
     for resp in responses:
-        if resp.get("bid_amount"):
-            bids.append(resp)
-        else:
+        if resp.get("bid_amount") == -1 or resp.get("bid_amount") is None:
             continue
+        else:
+            bids.append(resp)
 
     # cache results in redis but send ad placeholder to the ssp
+    # if no bids then no winner, no winning bid, no ads
     if not bids:
         user_info_json['ad_url'] = "no bids ad placeholder"
         auc_data = {
-            "winner": None,
+            "winner": "None",
             "winning_bid": -1,
             "creative_url": "no bids ad placeholder"
             }
@@ -96,7 +97,7 @@ async def respond_to_ad_request(
         print(f"\n=========================\nFailed to hset auction:\n{e}")
 
     # check if there are bids to cache and finish execution if there are none
-    if len(bids)==0:
+    if len(bids) == 0:
         return SSPResponseSchema(**user_info_json)
 
     # chaching bids to redis
@@ -119,34 +120,14 @@ async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                url,
-                json=user_info,
-                headers={"X-API-Key": api_key},
-                timeout=timeout
-            ) as response:
-        response_body = await response.text()
-        time_response = time_received - time_sent
-        if 'bid amount' in response_body.keys():
-            bid_data = {
-                        "dsp_id": dsp,
-                        "time_sent": time_sent,
-                        "time_received": time_received,
-                        "time_response": time_response,
-                        "bid_amount": response_body['bid_amount'],
-                        "is_winning": False
-            }
-            if 'creative_url' in response_body.keys():
-                bid_data['creative_url'] = response_body['creative_url']
-                return bid_data
-            else if 'creative_url' not in response_body.keys()::
-                bid_data['creative_url'] = 'No ad url provided but bid is present'
-                return bid_data
-        else:
-            return {
-                    "dsp_id": dsp,
-                    "status": "bid error",
-                    "error": "no bids"
-                }
+                    url,
+                    json=user_info,
+                    headers={"X-API-Key": api_key},
+                    #iohttp expects ClientTimeout instance instead of seconds
+                    timeout=aiohttp.ClientTimeout(total=timeout_seconds)
+                    ) as response:
+                response_body = await response.json()
+                time_received = time.time()
     except asyncio.TimeoutError:
         return {
                 "dsp_id": dsp,
@@ -154,15 +135,19 @@ async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
                 "error": f"Request timed out after {timeout_seconds}s"
             }
     except aiohttp.ClientError as e:
-        return {
-                "dsp_id": dsp,
-                "status": "client_error",
-                "error": str(e)
-            }
+        return {"dsp_id": dsp, "status": "client_error", "error": str(e)}
     except Exception as e:
-        return {
-                "dsp_id": dsp,
-                "status": "unexpected_error",
-                "error": str(e)
+        return {"dsp_id": dsp, "status": "unexpected_error", "error": str(e)}
+
+    time_response = time_received - time_sent
+    bid_data = {
+            "dsp_id": dsp,
+            "time_sent": time_sent,
+            "time_received": time_received,
+            "time_response": time_response,
+            "bid_amount": response_body.get('bid_amount', -1),
+            "creative_url": response_body.get('creative_url', 'No ad url provided'),
+            "is_winning": False
             }
+    return bid_data
 

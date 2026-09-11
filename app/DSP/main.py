@@ -89,7 +89,7 @@ async def send_bid():
                 {"no":"bids"}
             ]
     # answer is the value we return with 10% chance of returning no bids
-    answer = choices[answers, weights=[0.9, 0.1], k=1][0]
+    answer = random.choices(answers, weights=[0.9, 0.1], k=1)[0]
     # timeout roughly 1 call out of 10
     if random.random() < 0.1:
         await asyncio.sleep(0.05)
