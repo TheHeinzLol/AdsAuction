@@ -1,12 +1,14 @@
-
+import asyncio
 import logging
 
 from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
+from redis import asyncio as aioredis
 
 from app.exchange.dependencies.redis import close_redis, get_redis
 from app.exchange.middleware.metrics import setup_prometheus
 from app.exchange.routers.ssp import router as ssp_router
+from app.exchange.scripts.insert_worker import bulk_insert
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,6 +20,12 @@ async def lifespan(app: FastAPI):
     api_keys = await fetch_api_keys()
     # save keys to redis
     await save_keys_to_redis(app.state.redis, api_keys)
+    app.state.workers = {
+            #this one is to do: replace api keys fetch with this
+#            "worker: api keys update": asyncio.create_task(
+#                update_api_keys(app.state.redis)
+        "insert": asyncio.create_task(bulk_insert(app.state.redis))
+        }
     yield
     # close redis at shutdown
     await close_redis()
@@ -74,7 +82,7 @@ async def fetch_api_keys() -> dict:
                 }
             }
 
-async def save_keys_to_redis(redis, api_keys: dict):
+async def save_keys_to_redis(redis: aioredis.Redis, api_keys: dict):
     try:
         for key, dsp_id in api_keys.items():
             print(dsp_id, key)
