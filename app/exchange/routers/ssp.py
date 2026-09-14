@@ -61,8 +61,7 @@ async def respond_to_ad_request(
             continue
         else:
             bids.append(resp)
-    print(f'reponses:\n{responses}')
-    print(f'bids:\n{bids}')
+    print(f'bids:\n{len(bids)}')
     # cache results in redis but send ad placeholder to the ssp
     # if no bids then no winner, no winning bid, no ads
     if not bids:
@@ -117,15 +116,15 @@ async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
         api_key = await redis.hget('dsp:api_keys', dsp)
     timeout_seconds = timeout_ms / 1000.0
     url = f"http://dsp_fapi:8001/{dsp}"
-    time_sent = time.time()
     try:
         async with aiohttp.ClientSession() as session:
+            time_sent = time.time()
             async with session.post(
                     url,
                     json=user_info,
                     headers={"X-API-Key": api_key},
                     #iohttp expects ClientTimeout instance instead of seconds
-                    timeout=aiohttp.ClientTimeout(total=2)
+                    timeout=aiohttp.ClientTimeout(total=timeout_seconds)
                     ) as response:
                 response_body = await response.json()
                 time_received = time.time()
