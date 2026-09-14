@@ -9,7 +9,7 @@ from time import perf_counter, sleep
 from generate_ssp_user import generate_ssp_user
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 async def make_ad_request(client: aiohttp.ClientSession, idx: int):
     async with client.post(
@@ -32,16 +32,14 @@ async def fetch_all(client, urls):
 
 async def main(request_num: int):
     urls = range(0, request_num)
-    while True:
-        async with aiohttp.ClientSession() as client:
+    async with aiohttp.ClientSession() as client:
+        while True:
+            start = perf_counter()
             htmls = await fetch_all(client, urls)
-        logger.debug(f"Got responses: {htmls}")
-        sleep(5)
+            logger.debug(f"Got responses: {htmls}")
+            logger.info(f"{request_num} requests elapsed in {(perf_counter() - start) *1000}ms.")
+            await asyncio.sleep(5)
 
 if __name__ == '__main__':
     request_num = int(sys.argv[1])
-    start = perf_counter()
     asyncio.run(main(request_num))
-    logger.debug(f"{request_num} requests elapsed in {(perf_counter() - start) *1000}ms.")
-
-
