@@ -51,7 +51,10 @@ async def dsp_action(
     return {
             "dsp_id": dsp_id,
             "bid_amount": round(uniform(0.5,100), 2),
-            "creative_url": "DSP_mock_creative_url"
+            "creative_url": f"DSP_mock_creative_url_{dsp_id}",
+            "nurl": f"DSP_mock_win_notice_url_{dsp_id}",
+            "lurl": f"DSP_mock_loss_notice_url_{dsp_id}",
+            "burl": f"DSP_mock_billing_url_{dsp_id}"
             }
 
 @asynccontextmanager

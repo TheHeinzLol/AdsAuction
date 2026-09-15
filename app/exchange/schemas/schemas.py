@@ -13,8 +13,9 @@ class SSPUserInfoSchema(BaseModel):
     categories: list[str]
     ad_size: list[int] | None
 
-class SSPResponseSchema(SSPUserInfoSchema):
+class SSPResponseSchema(BaseModel):
     """Same data which exchange got but with ads URL"""
     ad_url: str
+    burl: str
 
 

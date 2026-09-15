@@ -98,7 +98,7 @@ async def respond_to_ad_request(
 
     # check if there are bids to cache and finish execution if there are none
     if len(bids) == 0:
-        return SSPResponseSchema(**user_info_json)
+        return Response(status_code=204)
 
     # chaching bids to redis
     try:
@@ -107,7 +107,10 @@ async def respond_to_ad_request(
     except Exception as e:
         print(f"\n=========================\nFailed to rpush bid {bid}:\n{e}")
 
-    return SSPResponseSchema(**user_info_json)
+    return {
+            'creative_url': winner['creative_url'],
+            'burl': winner['burl']
+            }
 
 async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
     if redis is None:
@@ -147,6 +150,9 @@ async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
             "time_response": time_response,
             "bid_amount": response_body.get('bid_amount', -1),
             "creative_url": response_body.get('creative_url', 'No ad url provided'),
+            "nurl": response_body.get('nurl', 'no nurl provided'),
+            "lurl": fresponse_body.get('lurl', 'no lurl provided'),
+            "burl": fresponse_body.get('burl', 'no burl provided'),
             "is_winning": False
             }
     return bid_data

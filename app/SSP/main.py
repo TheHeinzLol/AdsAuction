@@ -17,7 +17,7 @@ async def make_ad_request(client: aiohttp.ClientSession, idx: int):
             json=generate_ssp_user(idx=idx)
         ) as response:
         response_body = await response.text()
-        if response.status != 200:
+        if response.status != 200 or response_status != 204:
             logger.info(f"Failed to make ad request. Got response:\n {response_body}")
         return {
                 'status': response.status,
