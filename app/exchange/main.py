@@ -1,3 +1,4 @@
+import aiohttp
 import asyncio
 import logging
 
@@ -18,6 +19,8 @@ async def lifespan(app: FastAPI):
     app.state.redis = await get_redis()
     # get the api keys
     api_keys = await fetch_api_keys()
+    # create a shared session for DSP connections
+    app.state.dsp_session = aiohttp.ClientSession()
     # save keys to redis
     await save_keys_to_redis(app.state.redis, api_keys)
     app.state.workers = {
@@ -26,7 +29,13 @@ async def lifespan(app: FastAPI):
 #                update_api_keys(app.state.redis)
         "insert": asyncio.create_task(bulk_insert(app.state.redis))
         }
+    # Cancel all workers
+    for name, worker in app.state.workers.items():
+        worker.cancel()
+        print(f"Cancelling {name} worker")
     yield
+    # close dsp session
+    await app.state.dsp_session.close()
     # close redis at shutdown
     await close_redis()
 

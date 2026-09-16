@@ -6,7 +6,7 @@ import time
 import uuid
 
 from datetime import datetime
-from fastapi import APIRouter, Depends, Path, Request
+from fastapi import APIRouter, Depends, Path, Response, Request
 from typing import Annotated
 
 from app.exchange.schemas.schemas import SSPUserInfoSchema, SSPResponseSchema
@@ -27,6 +27,12 @@ async def respond_to_ad_request(
     REQUESTS_BY_REGION.labels(region=user_info.region).inc()
     # convert info to dict
     user_info_json = user_info.model_dump()
+    
+    # get aiohttp.ClientSession for dsp connections
+    try:
+        dsp_session = request.app.state.dsp_session
+    except Exception as e:
+        print(f'Failed to get session for dsp connections:\n{e}')
 
     # create client
     try:
@@ -51,7 +57,7 @@ async def respond_to_ad_request(
     # take timestamp of auction start
     time_auc_started = time.time()
     # make async bid requests to all DSPs
-    tasks = [send_bid_request(redis, dsp, user_info_json) for dsp in dsp_list]
+    tasks = [send_bid_request(dsp_session, redis, dsp, user_info_json) for dsp in dsp_list]
     responses = await asyncio.gather(*tasks)
 
     # collect valid bids
@@ -61,7 +67,6 @@ async def respond_to_ad_request(
             continue
         else:
             bids.append(resp)
-    print(f'bids:\n{len(bids)}')
     # cache results in redis but send ad placeholder to the ssp
     # if no bids then no winner, no winning bid, no ads
     if not bids:
@@ -106,13 +111,14 @@ async def respond_to_ad_request(
             await redis.rpush(f"auction:{auction_uuid}:bids", json.dumps(bid))
     except Exception as e:
         print(f"\n=========================\nFailed to rpush bid {bid}:\n{e}")
-
+    
+#    return Response(status_code=204)
     return {
-            'creative_url': winner['creative_url'],
+            'ad_url': winner['creative_url'],
             'burl': winner['burl']
             }
 
-async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
+async def send_bid_request(session, redis, dsp, user_info, timeout_ms=50) -> dict:
     if redis is None:
         api_key = "my_spare_key"
     else:
@@ -120,17 +126,16 @@ async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
     timeout_seconds = timeout_ms / 1000.0
     url = f"http://dsp_fapi:8001/{dsp}"
     try:
-        async with aiohttp.ClientSession() as session:
-            time_sent = time.time()
-            async with session.post(
-                    url,
-                    json=user_info,
-                    headers={"X-API-Key": api_key},
-                    #iohttp expects ClientTimeout instance instead of seconds
-                    timeout=aiohttp.ClientTimeout(total=timeout_seconds)
-                    ) as response:
-                response_body = await response.json()
-                time_received = time.time()
+        time_sent = time.time()
+        async with session.post(
+                url,
+                json=user_info,
+                headers={"X-API-Key": api_key},
+                #iohttp expects ClientTimeout instance instead of seconds
+                timeout=aiohttp.ClientTimeout(total=timeout_seconds)
+                ) as response:
+            response_body = await response.json()
+            time_received = time.time()
     except asyncio.TimeoutError:
         return {
                 "dsp_id": dsp,
@@ -151,8 +156,8 @@ async def send_bid_request(redis, dsp, user_info, timeout_ms=50) -> dict:
             "bid_amount": response_body.get('bid_amount', -1),
             "creative_url": response_body.get('creative_url', 'No ad url provided'),
             "nurl": response_body.get('nurl', 'no nurl provided'),
-            "lurl": fresponse_body.get('lurl', 'no lurl provided'),
-            "burl": fresponse_body.get('burl', 'no burl provided'),
+            "lurl": response_body.get('lurl', 'no lurl provided'),
+            "burl": response_body.get('burl', 'no burl provided'),
             "is_winning": False
             }
     return bid_data
