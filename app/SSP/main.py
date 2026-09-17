@@ -42,7 +42,7 @@ async def main(request_num: int):
             htmls = await fetch_all(client, urls)
             logger.debug(f"Got responses: {htmls}")
             logger.info(f"{request_num} requests elapsed in {(perf_counter() - start) *1000}ms.")
-            print(errors)
+            logger.info(f"status codes: {errors}")
             errors = {}
             await asyncio.sleep(3)
 

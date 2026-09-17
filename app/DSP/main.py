@@ -36,26 +36,27 @@ async def dsp_action(
                 status_code=403,
                 detail="API key does not match this DSP"
             )
-    answers = [
-                {
-                "bid_amount": round(uniform(0.5,100), 2),
-                "creative_url": "DSP_mock_creative_url"
-                },
-                {"no":"bids"}
-            ]
-    # answer is the value we return with 10% chance of returning no bids
-    answer = random.choices(answers, weights=[0.9, 0.1], k=1)[0]
     # timeout roughly 1 call out of 10
     if random.random() < 0.1:
         await asyncio.sleep(0.05)
-    return {
-            "dsp_id": dsp_id,
-            "bid_amount": round(uniform(0.5,100), 2),
-            "creative_url": f"DSP_mock_creative_url_{dsp_id}",
-            "nurl": f"DSP_mock_win_notice_url_{dsp_id}",
-            "lurl": f"DSP_mock_loss_notice_url_{dsp_id}",
-            "burl": f"DSP_mock_billing_url_{dsp_id}"
-            }
+
+    answers = [
+                {
+                    "dsp_id": dsp_id,
+                    "bid_amount": round(random.uniform(0.5,100), 2),
+                    "creative_url": f"DSP_mock_creative_url_{dsp_id}",
+                    "nurl": f"DSP_mock_win_notice_url_{dsp_id}",
+                    "lurl": f"DSP_mock_loss_notice_url_{dsp_id}",
+                    "burl": f"DSP_mock_billing_url_{dsp_id}"
+                },
+                None
+            ]
+    # answer is the value we return with 10% chance of returning no bids
+    answer = random.choices(answers, weights=[0.9, 0.1], k=1)[0]
+    if answer:
+        return answer
+    else:
+        return {"no": "bids"}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -79,36 +80,17 @@ app = FastAPI(title='DSP FastAPI', lifespan=lifespan)
 
 
 @app.get('/')
-def get_root():
+async def get_root():
     return {'ass':'twat'}
 
 @app.get('/healthz')
-def health_check():
+async def health_check():
     return {"status": "healty"}
 
 @app.get('/get_api_keys')
-def get_api_keys():
+async def get_api_keys():
     return VALID_KEYS
 
-@app.post('/bid_request')
-async def send_bid():
-    """This will first choose to return bid or not to,
-    and then decide if the responce will take more than 50ms
-    =========
-    TESTING FUNC DELETE LATER
-    ========="""
-    # possible responses 
-    answers = [
-                {
-                "bid_amount": round(uniform(0.5,100), 2),
-                "creative_url": "DSP_mock_creative_url"
-                },
-                {"no":"bids"}
-            ]
-    # answer is the value we return with 10% chance of returning no bids
-    answer = random.choices(answers, weights=[0.9, 0.1], k=1)[0]
-    # timeout roughly 1 call out of 10
-    if random.random() < 0.1:
-        await asyncio.sleep(0.05)
-    return answer
-
+@app.post('/billing')
+async def accept_billing_notice(payload: dict = Body()):
+    return {"billing notice": "accepted"}
