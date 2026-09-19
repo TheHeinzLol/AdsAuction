@@ -6,7 +6,7 @@ import time
 import uuid
 
 from datetime import datetime
-from fastapi import APIRouter, Depends, Path, Response, Request
+from fastapi import APIRouter, Body, Depends, Path, Response, Request
 from typing import Annotated
 
 from app.exchange.schemas.schemas import SSPUserInfoSchema, SSPResponseSchema
@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 router = APIRouter()
 
-@router.post('/ad_request', response_model=SSPResponseSchema)
+@router.post('/ad_request')
 async def respond_to_ad_request(
         user_info: SSPUserInfoSchema,
         request: Request
@@ -115,10 +115,22 @@ async def respond_to_ad_request(
 #    return Response(status_code=204)
     return {
             'ad_url': winner['creative_url'],
-            'burl': winner['burl']
+            'confirm_url': auction_uuid
             }
 
-async def send_bid_request(session, redis, dsp, user_info, timeout_ms=50) -> dict:
+@router.post('/billing_trigger')
+async def triger_dsp_billing(payload: dict = Body()):
+
+    print("billing confirmed")
+    return {"billing": f"confirmed {payload['billing_id']}"}
+
+# helper functions
+async def send_bid_request(session,
+                           redis,
+                           dsp,
+                           user_info,
+                           timeout_ms=50) -> dict:
+
     if redis is None:
         api_key = "my_spare_key"
     else:
@@ -158,6 +170,7 @@ async def send_bid_request(session, redis, dsp, user_info, timeout_ms=50) -> dic
             "nurl": response_body.get('nurl', 'no nurl provided'),
             "lurl": response_body.get('lurl', 'no lurl provided'),
             "burl": response_body.get('burl', 'no burl provided'),
+            "bid_id": response_body.get('bid_id', 'no bid_id provided'),
             "is_winning": False
             }
     return bid_data

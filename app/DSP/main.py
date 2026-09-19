@@ -3,6 +3,7 @@ import logging
 import random
 import secrets
 import os
+import uuid
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -50,13 +51,31 @@ async def dsp_action(
                     "burl": f"DSP_mock_billing_url_{dsp_id}"
                 },
                 None
-            ]
+                ]
     # answer is the value we return with 10% chance of returning no bids
     answer = random.choices(answers, weights=[0.9, 0.1], k=1)[0]
     if answer:
+        answer.update({"bid_id": str(uuid.uuid4())})
         return answer
     else:
         return {"no": "bids"}
+
+async def xurl_action(
+            payload: dict = Body(),
+            headers: str = Header()
+        ):
+
+    if x_api_key not in VALID_KEYS:
+        raise HTTPException(
+                status_code=401,
+                detail="Invalid API key"
+            )
+    if VALID_KEYS[x_api_key]['dsp'] != dsp_id:
+        raise HTTPException(
+                status_code=403,
+                detail="API key does not match this DSP"
+            )
+    return {"action": "taken"}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -64,6 +83,8 @@ async def lifespan(app: FastAPI):
     try:
         for dsp in dsp_list:
             app.add_api_route(f"/{dsp}", dsp_action, methods=["POST"])
+            for url in ['burl', 'nurl', 'lurl']:
+                app.add_api_route(f'/{url}_{dsp}', xurl_action, methods=["POST"])
             #generating api keys
             VALID_KEYS[secrets.token_urlsafe(16)] = {
                     'dsp': dsp,
