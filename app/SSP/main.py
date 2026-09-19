@@ -63,6 +63,9 @@ async def worker_billing(
     ) -> None:
     while True:
         billing_id = await billing_queue.get()
+        if random.random() < 0.1:
+            billing_queue.task_done()
+            continue
         try:
             await confirm_billing(client, billing_id)
         except Exception as e:

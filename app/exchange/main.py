@@ -19,8 +19,9 @@ async def lifespan(app: FastAPI):
     app.state.redis = await get_redis()
     # get the api keys
     api_keys = await fetch_api_keys()
-    # create a shared session for DSP connections
-    app.state.dsp_session = aiohttp.ClientSession()
+    # create a shared sessions for DSP connections
+    app.state.dsp_bid_request_session = aiohttp.ClientSession()
+    app.state.dsp_callback_session = aiohttp.ClientSession()
     # save keys to redis
     await save_keys_to_redis(app.state.redis, api_keys)
     app.state.workers = {
