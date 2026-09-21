@@ -44,6 +44,7 @@ async def dsp_action(
     answers = [
                 {
                     "dsp_id": dsp_id,
+                    "bid_id": str(uuid.uuid4())[:8],
                     "bid_amount": round(random.uniform(0.5,100), 2),
                     "creative_url": f"DSP_mock_creative_url_{dsp_id}",
                     "nurl": f"DSP_mock_win_notice_url_{dsp_id}",

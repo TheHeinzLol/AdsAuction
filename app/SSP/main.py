@@ -50,7 +50,7 @@ async def make_ad_request(client: aiohttp.ClientSession,
             logger.debug(f"Failed to make ad request.\nStatus:{response.status} Got response:\n {response_body}")
         else: 
             response_json = await response.json()
-            await billing_queue.put(response_json['confirm_url'])
+            await billing_queue.put(response_json['billing_token'])
         return {
                 'status': response.status,
                 'body': response_body,
@@ -62,25 +62,25 @@ async def worker_billing(
         billing_queue: asyncio.Queue
     ) -> None:
     while True:
-        billing_id = await billing_queue.get()
+        token = await billing_queue.get()
         if random.random() < 0.1:
             billing_queue.task_done()
             continue
         try:
-            await confirm_billing(client, billing_id)
+            await confirm_billing(client, token)
         except Exception as e:
             logger.info(f"Failed to confirm billing. Error:\n{e}")
         finally:
             billing_queue.task_done()
 
 async def confirm_billing(
-            client: aiohttp.ClientSession,
-            billing_id: str
-        ) -> None:
+                client: aiohttp.ClientSession,
+                token: str
+            ) -> None:
     async with client.post(
                 'http://localhost:8000/billing_trigger',
-                json={"billing_id": billing_id},
-            ) as response:
+                json={"billing_token": token}
+                ) as response:
         response_body = await response.text()
         if response.status != 200:
             logger.info(f"Failed to confirm billing. Response:\n{response_body}")

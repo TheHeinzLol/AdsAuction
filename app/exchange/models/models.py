@@ -16,6 +16,8 @@ class Auction(Base):
         )
     winner: Mapped[str] = mapped_column(String)
     winning_bid: Mapped[float] = mapped_column(Float)
+    bid_id: Mapped[str] = mapped_colum(String)
+    is_billed: Mapped[bool] = Mapped_column(Boolean)
     time_created: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
             nullable=False

@@ -30,7 +30,7 @@ async def respond_to_ad_request(
     
     # get aiohttp.ClientSession for dsp connections
     try:
-        dsp_session = request.app.state.dsp_session
+        dsp_session = request.app.state.dsp_bid_request_session
     except Exception as e:
         print(f'Failed to get session for dsp connections:\n{e}')
 
@@ -84,6 +84,8 @@ async def respond_to_ad_request(
         auc_data = {
             "winner": winner["dsp_id"],
             "winning_bid": winner["bid_amount"],
+            "clear_price": winner["bid_amount"], # this may change if the policy of winner determination will change
+            "bid_id": winner["bid_id"],
             "creative_url": winner["creative_url"]
             }
 
@@ -111,17 +113,34 @@ async def respond_to_ad_request(
             await redis.rpush(f"auction:{auction_uuid}:bids", json.dumps(bid))
     except Exception as e:
         print(f"\n=========================\nFailed to rpush bid {bid}:\n{e}")
-    
-#    return Response(status_code=204)
+
+    #TODO hmac goes here to generate token
+
     return {
+
             'ad_url': winner['creative_url'],
-            'confirm_url': auction_uuid
+            'billing_token': token
             }
 
 @router.post('/billing_trigger')
-async def triger_dsp_billing(payload: dict = Body()):
+async def triger_dsp_billing(
+            request: Request,
+            payload: dict = Body()
+        ):
+    #TODO check token and decide to insert and fire 
+    with async client.post(
+                url=f"http://dsp_fapi:8001/{burl}_{dsp}",
+                json=json_body,
+                headers={"X-API-Key": api_key},
+            ) as response:
+        if response.status != 200:
+            print(f'\n===========Failed to fire burl to DSP:\n{e}')
+        else:
+            try:
+                redis.hdel(f"invoice:pending:{auction_uuid}")
+            except Exception as e:
+                print(f'\n===========Failed to delete hash:\n{e}')
 
-    print("billing confirmed")
     return {"billing": f"confirmed {payload['billing_id']}"}
 
 # helper functions
