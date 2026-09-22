@@ -258,7 +258,6 @@ def verify_billing_token(token: str):
         Got      payload:{payload}\n
         Expected signature:{expected_signature}\n
         Got      signature:{signature}""")
-# TODO inspect invalid token
     auction_id, expires_at = payload.decode().split("|", 1)
 
     return auction_id, datetime.fromisoformat(expires_at)
