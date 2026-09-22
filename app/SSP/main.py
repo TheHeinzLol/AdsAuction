@@ -85,7 +85,7 @@ async def confirm_billing(
         if response.status != 200:
             logger.info(f"Failed to confirm billing. Response:\n{response_body}")
         else:
-            logger.info(f"confirmed: {response_body}")
+            logger.debug(f"confirmed: {response_body}")
 
 async def main(request_num: int):
     billing_queue = asyncio.Queue()

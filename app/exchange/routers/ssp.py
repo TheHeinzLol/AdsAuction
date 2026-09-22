@@ -5,7 +5,7 @@ import logging
 import time
 import uuid
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Body, Depends, Path, Response, Request
 from typing import Annotated
 
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 router = APIRouter()
+#TODO rename all session to something coherent
 
 @router.post('/ad_request')
 async def respond_to_ad_request(
@@ -114,7 +115,8 @@ async def respond_to_ad_request(
     except Exception as e:
         print(f"\n=========================\nFailed to rpush bid {bid}:\n{e}")
 
-    #TODO hmac goes here to generate token
+    # hmac to generate token
+    token = create_billing_token(auction_uuid, 60)
 
     return {
 
@@ -127,21 +129,40 @@ async def triger_dsp_billing(
             request: Request,
             payload: dict = Body()
         ):
-    #TODO check token and decide to insert and fire 
-    with async client.post(
-                url=f"http://dsp_fapi:8001/{burl}_{dsp}",
+    auction_id, expires_at = verify_billing_token(payload['billing_token'])
+
+    if expires_at < datetime.now().astimezone(timezone.utc):
+        return
+    # send invoice to DSP 
+    client = request.app.state.dsp_callback_session
+    # get redis
+    try:
+        redis = request.app.state.redis 
+    except Exception as e:
+        print(f'Failed to get redis client: {e}')
+
+    bid_id, clear_price = await redis.hmget(
+            f'auction:{auction_id}',
+            'bid_id',
+            'clear_price'
+        )
+    json_body = {
+            'bid_id': bid_id,
+            'clear_price': clear_price
+        }
+            
+    async with client.post(
+                url=f"http://dsp_fapi:8001/billing",
                 json=json_body,
-                headers={"X-API-Key": api_key},
+                headers={"X-API-Key": 'my_spare_key'},
             ) as response:
         if response.status != 200:
-            print(f'\n===========Failed to fire burl to DSP:\n{e}')
-        else:
-            try:
-                redis.hdel(f"invoice:pending:{auction_uuid}")
-            except Exception as e:
-                print(f'\n===========Failed to delete hash:\n{e}')
-
-    return {"billing": f"confirmed {payload['billing_id']}"}
+              print(f'\n===========Failed to fire burl to DSP:\n{e}')
+    #TODO edit record in database
+    # I guess we put auc uuid into a edit pending queue?
+    pass
+    # TODO does ADX return any confirmation to SSP?
+    return {"billing": f"confirmed"}
 
 # helper functions
 async def send_bid_request(session,
@@ -194,3 +215,50 @@ async def send_bid_request(session,
             }
     return bid_data
 
+# generating signature
+SECRET = b"adx-secret"
+import base64
+import hashlib
+import hmac
+
+def create_billing_token(
+    auction_id: str,
+    ttl: int,
+) -> str:
+    expires_at = datetime.now() + timedelta(seconds=ttl)
+    expires_at = expires_at.astimezone(timezone.utc)
+
+    payload = f"{auction_id}|{expires_at.isoformat()}".encode()
+    signature = hmac.new(
+        SECRET,
+        payload,
+        hashlib.sha256,
+    ).digest()
+
+    token = base64.urlsafe_b64encode(
+        payload + b"delim" + signature
+    ).decode()
+    return token
+
+def verify_billing_token(token: str):
+    raw = base64.urlsafe_b64decode(token)
+
+    payload, signature = raw.rsplit(b"delim", 1)
+    expected_signature = hmac.new(
+        SECRET,
+        payload,
+        hashlib.sha256,
+    ).digest()
+
+    if not hmac.compare_digest(
+        signature,
+        expected_signature,
+    ):
+        raise ValueError(f"""\nInvalid billing token\n
+        Got      payload:{payload}\n
+        Expected signature:{expected_signature}\n
+        Got      signature:{signature}""")
+# TODO inspect invalid token
+    auction_id, expires_at = payload.decode().split("|", 1)
+
+    return auction_id, datetime.fromisoformat(expires_at)

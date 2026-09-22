@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.DEBUG)
 num_dsp = 5
 dsp_list = [f'dsp_{i}' for i in range(num_dsp)]
 VALID_KEYS ={}
-
+#TODO add my_spare_key for all dsps
 async def dsp_action(
         request: Request,
         payload: dict = Body(),
