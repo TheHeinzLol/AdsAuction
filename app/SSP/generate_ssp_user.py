@@ -199,5 +199,7 @@ def generate_ssp_user(idx: int):
     return ssp_user_info
 
 if __name__ == "__main__":
-    print(generate_ssp_user())
+    import sys
+    idx = int(sys.argv[1])
+    print(generate_ssp_user(idx))
 
