@@ -4,7 +4,7 @@ from random import choice, choices, randint, sample
 from .user_data import DEVICES, CATEGORIES, COUNTRIES_LANGUAGES, DEVICE_WEIGHTS
 
 def main() -> dict:
-
+    """"""
     device = choices(list(DEVICES.keys()), weights=DEVICE_WEIGHTS, k=1)[0]
     channel = choice(DEVICES[device]["channels"])
     categories = sample(CATEGORIES, k=randint(1, len(CATEGORIES)))
