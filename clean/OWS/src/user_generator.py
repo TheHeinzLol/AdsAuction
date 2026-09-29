@@ -13,7 +13,7 @@ class UserProfile(TypedDict):
     languages: list[str]
     local_hour: int
 
-def main() -> UserProfile:
+def generate_user() -> UserProfile:
     """
     Generate a random user profile. The profile is sampled as follows: 
     - 'device' is chosen from 'DEVICES' keys, weighted by 'DEVICE_WEIGHTS'.
@@ -52,6 +52,9 @@ def main() -> UserProfile:
     }
     
     return user_info
+
+def main() -> dict:
+   return  generate_user()
 
 if __name__ == "__main__":
     main()

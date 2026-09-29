@@ -3,7 +3,7 @@
 Tests for user_data.py — verifies data integrity.
 """
 
-from OWS.user_data import (
+from OWS.src.user_data import (
         CATEGORIES,
         COUNTRIES_LANGUAGES,
         DEVICES,
