@@ -3,7 +3,7 @@
 Tests for generator.py — verifies output structure, type, and guarantees.
 """
 
-from OWS.src.generate_user import main
+from OWS.src.user_generator import main
 from OWS.src.user_data import DEVICES, CATEGORIES, COUNTRIES_LANGUAGES
 
 
