@@ -8,7 +8,10 @@ app = FastAPI()
 @app.post("/ssp_mock")
 async def ssp_answer(payload: dict=Body()):
 
-    return {"ssp_answer": "ok", "device": payload['device']}
+    return {
+            "ad_url": "ssp to ows mock ad url",
+            "billing_token": "ssp to ows mock billing token"
+    }
 
 
 if __name__ == "__main__":
