@@ -1,5 +1,5 @@
-fastapi[standard]
+
 aiohttp
 pytest
 pytest-asyncio
-uvicorn
+

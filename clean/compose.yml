@@ -1,0 +1,38 @@
+
+services:
+  ssp:
+    build:
+      context: ./SSP
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./SSP/src:/app/src
+    healthcheck:
+      test: ["CMD", "python", "-c",
+      "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 86400s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - ADXNetwork
+    restart: on-failure
+
+  ows:
+    build:
+      context: ./OWS
+      dockerfile: Dockerfile
+    volumes:
+      - ./OWS/src:/app/src
+    depends_on:
+      ssp:
+        condition: service_healthy
+    networks:
+      - ADXNetwork
+    restart: unless-stopped
+
+networks:
+  ADXNetwork:
+    driver: bridge
+
