@@ -23,6 +23,9 @@ services:
     build:
       context: ./OWS
       dockerfile: Dockerfile
+    environment:
+      #TODO ? Move this to .env?
+      - SSP_URL=http://ssp:8000
     volumes:
       - ./OWS/src:/app/src
     depends_on:

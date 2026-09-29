@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import logging
+import os
 import sys
 
 from time import perf_counter
@@ -10,19 +11,23 @@ from .user_generator import generate_user
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+# Read from environment, fall back to localhost.
+# This allows me to edit the script without launching docker compose every time
+SSP_URL = os.getenv("SSP_URL", "http://localhost:8000")
+
 async def main(num_requests):
-    async with aiohttp.ClientSession() as session:
-        result = await generate_requests_batch(session, num_requests)
-    print(result)
+    url = SSP_URL+"/ssp_mock"
+    connector = aiohttp.TCPConnector(limit=400)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        result = await generate_requests_batch(session, url, num_requests)
+        print(result)
 
 async def generate_requests_batch(
         session: aiohttp.ClientSession,
+        url: str,
         num_requests: int
 ) -> list[dict]:
-    url = "http://ssp:8000/ssp_mock"
-    connector = aiohttp.TCPConnector(limit=400)
-    async with aiohttp.ClientSession(connector=connector) as session:
-        while True:
+    while True:
             batch_start = perf_counter()
             responses = await fetch_all(session, url, num_requests)
             elapsed = perf_counter() - batch_start
@@ -41,6 +46,7 @@ async def fetch_all(
         url: str,
         num_requests: int = 1
 ) -> list[dict]:
+    responses = [] #in case nothing will be gathered
     tasks = [make_ad_request(session, url) for i in range(num_requests)]
     try:
         responses = await asyncio.gather(*tasks)
@@ -63,7 +69,7 @@ async def make_ad_request(
             return resp
     except Exception as e:
         logger.error(f"Ad request failed. Error:\n{e}")
-        return {"error": e}
+        return {"error": str(e)}
  
 
 if __name__ == "__main__":
