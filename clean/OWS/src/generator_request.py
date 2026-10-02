@@ -2,46 +2,60 @@ import aiohttp
 import asyncio
 import logging
 import os
+import signal
 import sys
-
 from time import perf_counter
+from urllib.parse import urljoin 
 
-from .user_generator import generate_user
+from .generator_user import generate_user
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 # Read from environment, fall back to localhost.
 # This allows me to edit the script without launching docker compose every time
 SSP_URL = os.getenv("SSP_URL", "http://localhost:8000")
 
-async def main(num_requests):
-    url = SSP_URL+"/ssp_mock"
+async def main(requests_per_second):
+    """Set up client session and run workload generator forever"""
+    url = urljoin(SSP_URL, "/ssp_mock")
+
+    # Graceful shutdown
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop.set)
+
     connector = aiohttp.TCPConnector(limit=400)
     async with aiohttp.ClientSession(connector=connector) as session:
-        result = await generate_requests_batch(session, url, num_requests)
-        print(result)
+        result = await generate_workload(session, url, requests_per_second, stop)
 
-async def generate_requests_batch(
+async def generate_workload(
         session: aiohttp.ClientSession,
         url: str,
-        num_requests: int
-) -> list[dict]:
-    while True:
-            batch_start = perf_counter()
-            responses = await fetch_all(session, url, num_requests)
-            elapsed = perf_counter() - batch_start
-            if elapsed < 1:
-                logger.debug(f"Batch elaplsed in {elapsed}s.")
-                await asyncio.sleep(1 - elapsed)
-            else:
-                logger.warning(
-                        f"Batch elapsed in {elapsed}s, exceeding target."
-                        f"Can't keep up with {num_requests} req/s"
-                        )
-    return responses
+        requests_per_second: int,
+        stop: asyncio.Event
+):
+    """Run batches of requests every second until stopped"""
+    while not stop.is_set():
+        batch_start = perf_counter()
+        
+        responses = await generate_request_batch(session, url, num_requests)
 
-async def fetch_all(
+        elapsed = perf_counter() - batch_start
+        if elapsed < 1:
+            logger.debug(f"Batch: {len(responses)} responses in {elapsed}s")
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=1 - elapsed)
+            except asyncio.TimeoutError:
+                pass # Normal: timeout means no stop signal so we move on
+        else:
+            logger.warning(
+                    f"Batch elapsed in {elapsed}s, exceeding target."
+                    f"Can't keep up with {num_requests} req/s"
+                    )
+
+async def generate_request_batch(
         session: aiohttp.ClientSession,
         url: str,
         num_requests: int = 1
