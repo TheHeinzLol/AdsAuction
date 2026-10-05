@@ -1,3 +1,4 @@
+
 import aiohttp
 import asyncio
 import logging
@@ -10,7 +11,7 @@ from urllib.parse import urljoin
 from .generator_user import generate_user
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # Read from environment, fall back to localhost.
 # This allows me to edit the script without launching docker compose every time
@@ -40,7 +41,7 @@ async def generate_workload(
     while not stop.is_set():
         batch_start = perf_counter()
         
-        responses = await generate_request_batch(session, url, num_requests)
+        responses = await generate_request_batch(session, url, requests_per_second)
 
         elapsed = perf_counter() - batch_start
         if elapsed < 1:
@@ -50,7 +51,7 @@ async def generate_workload(
             except asyncio.TimeoutError:
                 pass # Normal: timeout means no stop signal so we move on
         else:
-            logger.warning(
+            logger.info(
                     f"Batch elapsed in {elapsed}s, exceeding target."
                     f"Can't keep up with {num_requests} req/s"
                     )
