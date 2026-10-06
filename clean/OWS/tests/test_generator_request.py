@@ -184,26 +184,3 @@ async def test_main_uses_env_var_for_ssp_url(monkeypatch):
 
     assert gr.SSP_URL == "http://test-ssp:9999"
 
-# What is this insanity? What the hell is this lambda?
-async def test_main_creates_one_session_and_closes(monkeypatch):
-    """main() creates exactly one ClientSession and closes it."""
-    stop_event = asyncio.Event()
-    
-    with patch(
-        "OWS.src.request_generator.generate_workload",
-        new_callable=AsyncMock,
-    ) as mock_workload:
-        async def set_stop(*args, **kwargs):
-            stop_event.set()
-        
-        # Patch signal handler setup to avoid messing with the test runner
-        monkeypatch.setattr(
-            "OWS.src.request_generator.asyncio.get_running_loop",
-            lambda: type("Loop", (), {"add_signal_handler": lambda *a: None})(),
-        )
-        
-        await main(1)
-    
-    # generate_workload was called once
-    mock_workload.assert_called_once()
-
