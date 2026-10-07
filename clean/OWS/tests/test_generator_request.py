@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 from OWS.src.generator_request import (
         make_ad_request,
         generate_request_batch,
-        generate_worload,
+        generate_workload,
         worker_workload,
 )
 
@@ -17,17 +17,20 @@ mock_url = "http://localhost:8000"
 
 async def test_make_ad_request_returns_parsed_json_on_200():
     """On 200, returns parsed JSON body."""
-    with aioreponses() as mocked:
+    with aioresponses() as mocked:
         mocked.post(
                 mock_url,
                 status=200,
                 payload={"ad_url": "pytest mock ad url", "billing_token": "some hash"}
         )
         async with aiohttp.ClientSession() as session:
-            result = await make_ad_request(session, mock_url)
+            result = await make_ad_request(
+                    session=session,
+                    url=mock_url
+                    )
 
-        assert result['ad_url'] = "pytest_mock_ad_url"
-        assert result['billing_token'] = "some hash"
+        assert result['ad_url'] == "pytest mock ad url"
+        assert result['billing_token'] == "some hash"
 
 async def test_make_ad_request_returns_body_on_non_200():
     """On non-200, still returns parsed JSON body."""
@@ -36,14 +39,14 @@ async def test_make_ad_request_returns_body_on_non_200():
                 mock_url,
                 status=500,
                 payload={"error": "internal server error"}
-    )
-    async with aiohttp.ClientSession() as session:
-        result = await make_ad_request(
-                session=session,
-                url=mock_url
-                )
+        )
+        async with aiohttp.ClientSession() as session:
+            result = await make_ad_request(
+                    session=session,
+                    url=mock_url
+                        )
 
-    assert result['error'] = "internal server error"
+    assert result['error'] == "internal server error"
 
 async def test_make_ad_request_returns_dict_on_exception():
     """On exception, returns a dict with error text instead of rising."""
@@ -59,7 +62,7 @@ async def test_make_ad_request_returns_dict_on_exception():
                     )
 
     assert "error" in result
-    assert "timeour" in result['error'].lower()
+    assert result["error_type"] == "TimeoutError"
 
 # ===== generate_request_batch =====
 
@@ -69,7 +72,7 @@ async def test_generate_request_batch_returns_n_responses():
     with aioresponses() as mocked:
         for _ in range(num_requests):
             mocked.post(
-                    mock_url
+                    mock_url,
                     status=200,
                     payload={"ad_url": "pytest mock ad url", "billing_token": "some hash"}
             )
@@ -85,12 +88,12 @@ async def test_generate_request_batch_handles_mixed_responses():
     """Handles responses other than 200 without raising an error."""
     with aioresponses() as mocked:
         mocked.post(
-                mock_url
+                mock_url,
                 status=200,
                 payload={"ad_url": "pytest mock ad url", "billing_token": "some hash"}
         )
         mocked.post(
-                mock_url
+                mock_url,
                 status=500,
                 payload={"error": "boom"}
         )
@@ -114,7 +117,7 @@ async def test_generate_workload_stops_if_event_is_set():
             new_callable=AsyncMock
         ) as mock_batch:
         async with aiohttp.ClientSession() as session:
-            async with generate_workload(
+            await generate_workload(
                     session=session,
                     url=mock_url,
                     requests_per_second=10,
@@ -147,7 +150,7 @@ async def test_generate_workload_generates_at_least_one_batch():
 
 async def test_generate_workload_continues_after_slow_batch():
     """Slow batch doesn't stop the loop."""
-    stop = asyncio.event()
+    stop = asyncio.Event()
     call_count = 0
 
     async def slow_then_stop(*arg, **kwargs):
@@ -180,7 +183,7 @@ async def test_worker_workload_uses_env_var_for_ssp_url(monkeypatch):
     #re-import
     import importlib
     import OWS.src.generator_request as gr
-    importlib(gr)
+    importlib.reload(gr)
 
     assert gr.SSP_URL == "http://test-ssp:9999"
 

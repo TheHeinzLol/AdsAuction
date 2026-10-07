@@ -80,11 +80,14 @@ async def make_ad_request(
                     ) as response:
             resp = await response.json()
             if response.status != 200:
-                logger.info(f"Ad request not 200:\nGot status: {response.status}\nBody:\n{resp}")      
+                logger.info(f"ad request not 200:\ngot status: {response.status}\nbody:\n{resp}")      
             return resp
     except Exception as e:
-        logger.error(f"Ad request failed. Error:\n{e}")
-        return {"error": str(e)}
+        logger.error(f"ad request failed. error:\n{e}")
+        return {
+                "error": str(e),
+                "error_type": type(e).__name__
+                }
  
 
 if __name__ == "__main__":
