@@ -9,7 +9,7 @@ from OWS.src.generator_request import (
         make_ad_request,
         generate_request_batch,
         generate_worload,
-        main,
+        worker_workload,
 )
 
 mock_url = "http://localhost:8000"
@@ -171,10 +171,10 @@ async def test_generate_workload_continues_after_slow_batch():
                 )
     assert mock_batch.call_count == 2
 
-# ===== main =====
+# ===== worker_workload =====
 
-async def test_main_uses_env_var_for_ssp_url(monkeypatch):
-    """main() builds ssp url from the SSP_URL env var."""
+async def test_worker_workload_uses_env_var_for_ssp_url(monkeypatch):
+    """worker_workload() builds ssp url from the SSP_URL env var."""
     monkeypatch.setenv("SSP_URL", "http://test-ssp:9999")
 
     #re-import

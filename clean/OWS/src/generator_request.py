@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 # This allows me to edit the script without launching docker compose every time
 SSP_URL = os.getenv("SSP_URL", "http://localhost:8000")
 
-async def main(requests_per_second):
+async def worker_workload(requests_per_second):
     """Set up client session and run workload generator forever"""
     url = urljoin(SSP_URL, "/ssp_mock")
 
