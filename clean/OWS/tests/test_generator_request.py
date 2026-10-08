@@ -21,7 +21,7 @@ async def test_make_ad_request_returns_parsed_json_on_200():
         mocked.post(
                 mock_url,
                 status=200,
-                payload={"ad_url": "pytest mock ad url", "billing_token": "some hash"}
+                payload={"ad_url": "pytest mock ad url", "auction_id": "some hash", "ttl": 10}
         )
         async with aiohttp.ClientSession() as session:
             result = await make_ad_request(
@@ -30,7 +30,8 @@ async def test_make_ad_request_returns_parsed_json_on_200():
                     )
 
         assert result['ad_url'] == "pytest mock ad url"
-        assert result['billing_token'] == "some hash"
+        assert result['auction_id'] == "some hash"
+        assert isinstance(result['ttl'], int)
 
 async def test_make_ad_request_returns_body_on_non_200():
     """On non-200, still returns parsed JSON body."""

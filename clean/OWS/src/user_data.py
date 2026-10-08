@@ -32,7 +32,7 @@ CATEGORIES = list({
 })
 
 DEVICES = {
-        "pc": {
+    "pc": {
             "channels": ["audio streaming", "maps", "search", "social", "video streaming"],
             "ad_sizes": [(300, 250), (728, 90), (160, 600), (1920, 1080), (1080, 1920)]
     },

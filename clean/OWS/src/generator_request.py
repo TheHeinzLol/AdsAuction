@@ -6,30 +6,27 @@ import os
 import signal
 import sys
 from time import perf_counter
+from random import random
 from urllib.parse import urljoin 
 
 from .generator_user import generate_user
+from .delayed_queue import schedule
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
-
 # Read from environment, fall back to localhost.
 # This allows me to edit the script without launching docker compose every time
 SSP_URL = os.getenv("SSP_URL", "http://localhost:8000")
 
-async def worker_workload(requests_per_second):
+async def worker_workload(
+        requests_per_second: int,
+        stop: asyncio.Event
+):
     """Set up client session and run workload generator forever"""
+
     url = urljoin(SSP_URL, "/ssp_mock")
-
-    # Graceful shutdown
-    stop = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop.set)
-
-    connector = aiohttp.TCPConnector(limit=400)
-    async with aiohttp.ClientSession(connector=connector) as session:
-        result = await generate_workload(session, url, requests_per_second, stop)
+    async with aiohttp.ClientSession() as session:
+        logger.debug("Starting generate_workload")
+        await generate_workload(session, url, requests_per_second, stop)
 
 async def generate_workload(
         session: aiohttp.ClientSession,
@@ -80,7 +77,20 @@ async def make_ad_request(
                     ) as response:
             resp = await response.json()
             if response.status != 200:
-                logger.info(f"ad request not 200:\ngot status: {response.status}\nbody:\n{resp}")      
+                logger.info(f"ad request not 200:\ngot status: {response.status}\nbody:\n{resp}")
+            else:
+                roll = random()
+                # immediate render
+                if roll  < 0.85:
+                    logger.debug(f"Scheduling {resp["auction_id"]}")
+                    schedule(ttl=0, auction_id=resp["auction_id"])
+                # expire
+                elif roll < 0.95:
+                    logger.debug(f"Scheduling {resp["auction_id"]}")
+                    schedule(ttl=resp["ttl"], auction_id=resp["auction_id"])
+                # 5% chance to skip rendering entirely: adblock or page abandon etc.
+                else:
+                    logger.debug(f"Not scheduling {resp["auction_id"]}")
             return resp
     except Exception as e:
         logger.error(f"ad request failed. error:\n{e}")
@@ -92,5 +102,5 @@ async def make_ad_request(
 
 if __name__ == "__main__":
     num_requests = int(sys.argv[1])
-    asyncio.run(main(num_requests))
+    asyncio.run(worker_workload(num_requests))
 
