@@ -11,9 +11,9 @@ from .worker_render import worker_render
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-logging.getLogger("OWS.src.generate_request").setLevel(logging.DEBUG)
-logging.getLogger("OWS.src.worker_render").setLevel(logging.DEBUG)
-logging.getLogger("OWS.src.delayed_queue").setLevel(logging.DEBUG)
+logging.getLogger("OWS.src.generate_request").setLevel(logging.WARNING)
+logging.getLogger("OWS.src.worker_render").setLevel(logging.WARNING)
+logging.getLogger("OWS.src.delayed_queue").setLevel(logging.WARNING)
 
 async def main(requests_per_second: int):
     # Graceful stop set up
@@ -23,12 +23,13 @@ async def main(requests_per_second: int):
         loop.add_signal_handler(sig, stop.set)
     # start tasks
     tasks = {
-            "workload_task": 
+            "workload": 
                 asyncio.create_task(
-                    worker_workload(requests_per_second=requests_per_second, stop=stop)
+                    worker_workload(requests_per_second=requests_per_second, stop=stop),
+                    name="workload_task"
                 ),
-            "render_task":
-                asyncio.create_task(worker_render(stop))
+            "render":
+                asyncio.create_task(worker_render(stop), name="render_task")
                 }
     # wait for graceful stop
     await stop.wait()
@@ -37,10 +38,10 @@ async def main(requests_per_second: int):
         task.cancel()
 
     results =  await asyncio.gather(
-            tasks,
+            *tasks.values(),
             return_exceptions=True
     )
-    for task, result in zip(tasks, results):
+    for task, result in zip(tasks.values(), results):
         if isinstance(result, Exception):
             logger.error(f"Task {task.get_name()} crashed:\n{result}", exc_info=result)
         else:
