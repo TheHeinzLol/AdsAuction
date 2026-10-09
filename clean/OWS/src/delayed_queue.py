@@ -13,7 +13,6 @@ def schedule (
     """Add item into the delaed queue."""
     send_at = time.time() + ttl
     heapq.heappush(_delayed_queue, (send_at, auction_id))
-    logger.debug(f"Queued responses: {len(_delayed_queue)}")
 
 def peek() -> tuple[float, str] | None:
     """Look at the next item without deleting it."""
