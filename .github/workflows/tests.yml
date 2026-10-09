@@ -25,9 +25,5 @@ jobs:
 
       - name: Run tests
         working-directory: clean
-        run: |
-          pwd
-          tree
-          cd clean
-          pytest -v
+        run: pytest -v
 
