@@ -21,9 +21,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r clean/requirements-dev.txt
+          pip install -r clean/OWS/requirements-dev.txt
 
       - name: Run tests
         working-directory: clean
-        run: pytest -v
+        run: |
+          cd clean
+          pytest -v
 
