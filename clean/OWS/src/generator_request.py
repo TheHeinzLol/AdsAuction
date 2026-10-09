@@ -52,6 +52,7 @@ async def generate_workload(
                     f"Batch elapsed in {elapsed}s, exceeding target."
                     f"Can't keep up with {num_requests} req/s"
                     )
+    logger.info("Workload generator exited while loop due to stop signal")
 
 async def generate_request_batch(
         session: aiohttp.ClientSession,
