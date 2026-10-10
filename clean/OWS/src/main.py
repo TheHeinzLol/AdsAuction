@@ -5,6 +5,7 @@ import signal
 import sys
 
 from .generator_request import worker_workload
+from .metrics_server import start_metrics_server
 from .worker_render import worker_render
 
 
@@ -16,6 +17,8 @@ logging.getLogger("OWS.src.delayed_queue").setLevel(logging.WARNING)
 
 
 async def main(requests_per_second: int):
+    #TODO should I check if server is stopped with cancellation and notify of it?
+    start_metrics_server(8043)#TODO this port is hardcoded. Replace with env var
     # Graceful stop set up
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()

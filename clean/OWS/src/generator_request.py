@@ -8,8 +8,9 @@ from time import perf_counter
 from random import random
 from urllib.parse import urljoin
 
-from .generator_user import generate_user
 from .delayed_queue import schedule
+from .generator_user import generate_user
+from .metrics import AD_REQUESTS_SENT, RENDERS_SKIPPED
 
 logger = logging.getLogger(__name__)
 # Read from environment, fall back to localhost.
@@ -73,7 +74,9 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
                 logger.info(
                     f"ad request not 200:\ngot status: {response.status}\nbody:\n{resp}"
                 )
+                AD_REQUESTS_SENT.labels(status="error").inc()
             else:
+                AD_REQUESTS_SENT.labels(status="success").inc()
                 roll = random()
                 # immediate render
                 if roll < 0.85:
@@ -85,6 +88,7 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
                     schedule(ttl=resp["ttl"], auction_id=resp["auction_id"])
                 # 5% chance to skip rendering entirely: adblock or page abandon etc.
                 else:
+                    RENDERS_SKIPPED.inc()
                     logger.debug(f"Not scheduling {resp['auction_id']}")
             return resp
     except Exception as e:

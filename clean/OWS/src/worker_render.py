@@ -6,6 +6,7 @@ import time
 from urllib.parse import urljoin
 
 from .delayed_queue import peek, pop, size
+from .metrics import RENDERS_CONFIRMED
 
 logger = logging.getLogger(__name__)
 
@@ -55,4 +56,5 @@ async def send_render_confirmation(
         if response.status != 200:
             logger.info(f"\nFailed to confirm rendering. Response:\n{response_body}")
         else:
+            RENDERS_CONFIRMED.inc()
             logger.debug(f"\nRender confirmed: {auction_id}")
