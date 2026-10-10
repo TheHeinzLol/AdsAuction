@@ -18,10 +18,8 @@ async def worker_render(stop: asyncio.Event):
     async with aiohttp.ClientSession(connector=connector) as session:
         await render_ad(session, stop)
 
-async def render_ad(
-        session: aiohttp.ClientSession,
-        stop: asyncio.Event
-):
+
+async def render_ad(session: aiohttp.ClientSession, stop: asyncio.Event):
     """
     Perpetually checks for items in queue to send render confirmation.
     Waits 0.1s if queue is empty.
@@ -39,27 +37,22 @@ async def render_ad(
             pop()
             try:
                 await send_render_confirmation(
-                        session=session,
-                        url=render_url,
-                        auction_id=auction_id
-                    )
+                    session=session, url=render_url, auction_id=auction_id
+                )
             except Exception as e:
                 logger.info(f"\nFailed render confirmation request. Error:\n{e}\n")
         else:
             await asyncio.sleep(min(send_at - now, 0.1))
 
+
 async def send_render_confirmation(
-        session: aiohttp.ClientSession,
-        url: str,
-        auction_id: str
+    session: aiohttp.ClientSession, url: str, auction_id: str
 ) -> None:
     async with session.post(
-            url=render_url,
-            json={"auction_id": auction_id, "render_status": "rendered"}
-        ) as response:
+        url=render_url, json={"auction_id": auction_id, "render_status": "rendered"}
+    ) as response:
         response_body = await response.json()
         if response.status != 200:
             logger.info(f"\nFailed to confirm rendering. Response:\n{response_body}")
         else:
             logger.debug(f"\nRender confirmed: {auction_id}")
-
