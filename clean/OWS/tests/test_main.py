@@ -3,6 +3,35 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from OWS.src.main import main
 
+async def test_main_releases_port_after_stopping_metrics_server():
+    """main() creates and stops prometheus server, then releases used port."""
+
+    def is_port_free(port: int) -> bool:
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            try:
+                sock.bind(("127.0.0.1", port))
+                return True
+            except OSError:
+                return False
+
+    #fake worker
+    async def fake_worker():
+        asyncio.sleep(0.1)
+        return None
+
+    with (
+        patch("OWS.src.main.asyncio.Event") as mock_event,
+        patch("OWS.src.main.asyncio.get_running_loop", return_value=MagicMock()),
+        patch("OWS.src.main.worker_workload", side_effect=fake_worker),
+        patch("OWS.src.main.worker_render", side_effect=fake_worker),
+    ):
+        event = MagicMock()
+        event.wait = AsyncMock()
+        mock_event.return_value = event
+        await main(requests_per_second=1, metrics_server_port=0)
+        assert is_port_free(0) == True
+
 
 async def test_main_creates_named_tasks(monkeypatch):
     # Spy on create_task by putting tasks in a list

@@ -16,11 +16,9 @@ logging.getLogger("OWS.src.delayed_queue").setLevel(logging.WARNING)
 METRICS_PORT = 8041
 
 
-async def main(requests_per_second: int):
+async def main(requests_per_second: int, metrics_server_port: int = METRICS_PORT):
     # starting a metrics server for prometheus to scrape
-    prometheus_server, thread = start_metrics_server(
-        METRICS_PORT
-    )  # TODO this port is hardcoded. Replace with env var
+    prometheus_server, thread = start_metrics_server(metrics_server_port)
     # Graceful stop set up
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -52,7 +50,7 @@ async def main(requests_per_second: int):
     try:
         prometheus_server.shutdown()
         prometheus_server.server_close()
-        thread.join()
+        thread.join(timeout=2)
         logger.info("Prometheus metrics server shutdown success.")
     except Exception as e:
         logger.error(f"Failed to shutdown Prometheus metrics server:\n{e!s}")

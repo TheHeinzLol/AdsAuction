@@ -116,8 +116,6 @@ async def test_generate_workload_generates_at_least_one_batch():
     """Runs at least ones if stop is not set."""
     stop = asyncio.Event()
 
-    # explain me why should I unpack args and kwargs in side effect?
-    # And why does it return []?
     async def set_stop_event(*args, **kwargs):
         stop.set()
         return []
