@@ -1,5 +1,4 @@
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from OWS.src.main import main
@@ -45,20 +44,19 @@ async def test_main_runs_and_stops():
 
     async def fake_worker(*args, **kwargs):
         await asyncio.sleep(0.2)
-        return None
 
     # We mock every worker since we don't need to actually run those.
-    with patch("OWS.src.main.worker_workload", side_effect=fake_worker):
-        with patch("OWS.src.main.worker_render", side_effect=fake_worker):
-            with patch(
-                "OWS.src.main.asyncio.get_running_loop", side_effect=MagicMock()
-            ):
-                with patch("OWS.src.main.asyncio.Event") as mock_event:
-                    event = MagicMock()
+    with (
+        patch("OWS.src.main.worker_workload", side_effect=fake_worker),
+        patch("OWS.src.main.worker_render", side_effect=fake_worker),
+        patch("OWS.src.main.asyncio.get_running_loop", side_effect=MagicMock()),
+        patch("OWS.src.main.asyncio.Event") as mock_event,
+    ):
+        event = MagicMock()
 
-                    async def short_wait():
-                        await asyncio.sleep(0.05)
+        async def short_wait():
+            await asyncio.sleep(0.05)
 
-                    event.wait = short_wait
-                    mock_event.return_value = event
-                    await main(1)
+        event.wait = short_wait
+        mock_event.return_value = event
+        await main(1)

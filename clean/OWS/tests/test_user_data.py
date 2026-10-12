@@ -2,7 +2,7 @@
 Tests for user_data.py — verifies data integrity.
 """
 
-from OWS.src.user_data import CATEGORIES, COUNTRIES_LANGUAGES, DEVICES, DEVICE_WEIGHTS
+from OWS.src.user_data import CATEGORIES, COUNTRIES_LANGUAGES, DEVICE_WEIGHTS, DEVICES
 
 
 # Validate foundational data instances lengths

@@ -1,11 +1,12 @@
-import aiohttp
 import asyncio
 import logging
 import os
 import time
 from urllib.parse import urljoin
 
-from .delayed_queue import peek, pop, size
+import aiohttp
+
+from .delayed_queue import peek, pop
 from .metrics import RENDERS_CONFIRMED
 
 logger = logging.getLogger(__name__)

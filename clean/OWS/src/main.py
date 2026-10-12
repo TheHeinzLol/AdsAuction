@@ -1,4 +1,3 @@
-import aiohttp
 import asyncio
 import logging
 import signal
@@ -8,7 +7,6 @@ from .generator_request import worker_workload
 from .metrics_server import start_metrics_server
 from .worker_render import worker_render
 
-
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("OWS.src.generate_request").setLevel(logging.INFO)
@@ -17,9 +15,12 @@ logging.getLogger("OWS.src.delayed_queue").setLevel(logging.WARNING)
 
 METRICS_PORT = 8041
 
+
 async def main(requests_per_second: int):
-    #starting a metrics server for prometheus to scrape
-    prometheus_server, thread = start_metrics_server(METRICS_PORT)  # TODO this port is hardcoded. Replace with env var
+    # starting a metrics server for prometheus to scrape
+    prometheus_server, thread = start_metrics_server(
+        METRICS_PORT
+    )  # TODO this port is hardcoded. Replace with env var
     # Graceful stop set up
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -54,7 +55,7 @@ async def main(requests_per_second: int):
         thread.join()
         logger.info("Prometheus metrics server shutdown success.")
     except Exception as e:
-        logger.error(f"Failed to shutdown Prometheus metrics server:\n{str(e)}")
+        logger.error(f"Failed to shutdown Prometheus metrics server:\n{e!s}")
 
 
 if __name__ == "__main__":

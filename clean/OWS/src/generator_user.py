@@ -1,7 +1,7 @@
 from random import choice, choices, randint, sample
 from typing import TypedDict
 
-from .user_data import DEVICES, CATEGORIES, COUNTRIES_LANGUAGES, DEVICE_WEIGHTS
+from .user_data import CATEGORIES, COUNTRIES_LANGUAGES, DEVICE_WEIGHTS, DEVICES
 
 
 class UserProfile(TypedDict):

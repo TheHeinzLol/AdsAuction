@@ -1,12 +1,12 @@
-import aiohttp
 import asyncio
 import logging
 import os
-import signal
 import sys
-from time import perf_counter
 from random import random
+from time import perf_counter
 from urllib.parse import urljoin
+
+import aiohttp
 
 from .delayed_queue import schedule
 from .generator_user import generate_user
@@ -44,7 +44,7 @@ async def generate_workload(
             logger.debug(f"Batch: {len(responses)} responses in {elapsed}s")
             try:
                 await asyncio.wait_for(stop.wait(), timeout=1 - elapsed)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass  # Normal: timeout means no stop signal so we move on
         else:
             logger.info(

@@ -1,14 +1,13 @@
-import aiohttp
 import asyncio
-import pytest
-from aioresponses import aioresponses
 from unittest.mock import AsyncMock, patch
 
+import aiohttp
+from aioresponses import aioresponses
+
 from OWS.src.generator_request import (
-    make_ad_request,
     generate_request_batch,
     generate_workload,
-    worker_workload,
+    make_ad_request,
 )
 
 mock_url = "http://localhost:8000"
@@ -50,7 +49,7 @@ async def test_make_ad_request_returns_dict_on_exception():
     with aioresponses() as mocked:
         mocked.post(
             mock_url,
-            exception=asyncio.TimeoutError(),
+            exception=TimeoutError(),
         )
         async with aiohttp.ClientSession() as session:
             result = await make_ad_request(session=session, url=mock_url)
@@ -169,6 +168,7 @@ async def test_worker_workload_uses_env_var_for_ssp_url(monkeypatch):
 
     # re-import
     import importlib
+
     import OWS.src.generator_request as gr
 
     importlib.reload(gr)

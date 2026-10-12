@@ -1,7 +1,8 @@
-from fastapi import Body, FastAPI
-from pydantic import BaseModel
 from random import choice  # for choosing a ttl
 from uuid import uuid4
+
+from fastapi import FastAPI
+from pydantic import BaseModel
 
 app = FastAPI()
 
