@@ -17,13 +17,14 @@ async def test_main_creates_named_tasks(monkeypatch):
     monkeypatch.setattr(asyncio, "create_task", spy_create_task)
 
     # Patch stop.wait to return immediately and prevent workers from running
-    with patch("OWS.src.main.asyncio.Event") as mock_event:
+    with (
+        patch("OWS.src.main.asyncio.Event") as mock_event,
+        patch("OWS.src.main.asyncio.get_running_loop", return_value=MagicMock()),
+    ):
         event = MagicMock()
         event.wait = AsyncMock()
         mock_event.return_value = event
-
-        with patch("OWS.src.main.asyncio.get_running_loop", return_value=MagicMock()):
-            await main(1)
+        await main(1)
 
     # Verify amount
     assert len(created_tasks) == 2
