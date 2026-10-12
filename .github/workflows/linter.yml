@@ -1,0 +1,28 @@
+
+import : Linter
+
+on:
+  push:
+    branches: [ main, development]
+  pull-request:
+    branches: [ main, development]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up python
+        uses: actions/setup-python@v7
+        with: 
+          python-version: 3.12
+          cache: pip
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff linter
+        run: ruff check --fix ./clean && ruff format
+
