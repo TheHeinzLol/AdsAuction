@@ -10,7 +10,7 @@ import aiohttp
 
 from .delayed_queue import schedule
 from .generator_user import generate_user
-from .metrics import AD_REQUESTS_SENT, RENDERS_SKIPPED
+from .metrics import AD_REQUESTS_SENT, RENDERS_SKIPPED, AD_REQUEST_DURATION
 
 logger = logging.getLogger(__name__)
 # Read from environment, fall back to localhost.
@@ -68,15 +68,19 @@ async def generate_request_batch(
 
 async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
     try:
+        before_request = perf_counter()
         async with session.post(url=url, json=generate_user()) as response:
+            response_time = (perf_counter() - before_request) * 1000 # ms instead of s
             resp = await response.json()
             if response.status != 200:
                 logger.info(
                     f"ad request not 200:\ngot status: {response.status}\nbody:\n{resp}"
                 )
                 AD_REQUESTS_SENT.labels(status="error").inc()
+                AD_REQUEST_DURATION.labels(status="error").observe(response_time)
             else:
                 AD_REQUESTS_SENT.labels(status="success").inc()
+                AD_REQUEST_DURATION.labels(status="success").observe(response_time)
                 roll = random()
                 # immediate render
                 if roll < 0.85:
