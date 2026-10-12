@@ -15,7 +15,7 @@ services:
     image: grafana/grafana:13.2.3-slim
     container_name: grafana
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
     ports:
       - "3000:3000"
     environment:
@@ -25,6 +25,8 @@ services:
     restart: unless-stopped
     networks:
       - monitoring
+    depends_on:
+      - prometheus
 
 networks:
   monitoring:

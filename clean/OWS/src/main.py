@@ -13,7 +13,7 @@ logging.getLogger("OWS.src.generate_request").setLevel(logging.INFO)
 logging.getLogger("OWS.src.worker_render").setLevel(logging.WARNING)
 logging.getLogger("OWS.src.delayed_queue").setLevel(logging.WARNING)
 
-METRICS_PORT = 8041
+METRICS_PORT = 8043
 
 
 async def main(requests_per_second: int, metrics_server_port: int = METRICS_PORT):
