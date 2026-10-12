@@ -15,10 +15,11 @@ logging.getLogger("OWS.src.generate_request").setLevel(logging.INFO)
 logging.getLogger("OWS.src.worker_render").setLevel(logging.WARNING)
 logging.getLogger("OWS.src.delayed_queue").setLevel(logging.WARNING)
 
+METRICS_PORT = 8041
 
 async def main(requests_per_second: int):
-    # TODO should I check if server is stopped with cancellation and notify of it?
-    start_metrics_server(8043)  # TODO this port is hardcoded. Replace with env var
+    #starting a metrics server for prometheus to scrape
+    prometheus_server, thread = start_metrics_server(METRICS_PORT)  # TODO this port is hardcoded. Replace with env var
     # Graceful stop set up
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -46,6 +47,14 @@ async def main(requests_per_second: int):
             logger.error(f"Task {task.get_name()} crashed:\n{result}", exc_info=result)
         else:
             logger.info(f"Task {task.get_name()} stopped cleanly.")
+
+    try:
+        prometheus_server.shutdown()
+        prometheus_server.server_close()
+        thread.join()
+        logger.info("Prometheus metrics server shutdown success.")
+    except Exception as e:
+        logger.error(f"Failed to shutdown Prometheus metrics server:\n{str(e)}")
 
 
 if __name__ == "__main__":

@@ -5,8 +5,9 @@ logger = logging.getLogger(__name__)
 
 
 def start_metrics_server(port: int = 8000) -> None:
-    start_http_server(port)
+    server, thread = start_http_server(port)
     logger.info(
         f"Metrics server started on port {port}",
         f"Metrics available at http://localhost:{port}/metrics",
     )
+    return (server, thread)
