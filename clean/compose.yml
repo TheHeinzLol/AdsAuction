@@ -5,7 +5,7 @@ services:
       context: ./SSP
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "${SSP_PORT:-8001}:8000"
     volumes:
       - ./SSP/src:/app/src
     healthcheck:
@@ -24,7 +24,6 @@ services:
       context: ./OWS
       dockerfile: Dockerfile
     environment:
-      #TODO ? Move this to .env?
       - SSP_URL=http://ssp:8000
     volumes:
       - ./OWS/src:/app/src
@@ -34,6 +33,44 @@ services:
     networks:
       - ADXNetwork
     restart: unless-stopped
+  
+  prometheus:
+    image : prom/prometheus:v3.15.0
+    container_name: prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.ymlA
+    restart: unless-stopped
+    networks:
+      - ADXNetwork
+    depends_on:
+      ows:
+        condition: service_healthy
+      ssp:
+        condition: service_healthy
+#      adx:
+#        condition: service_healthy
+#      dsp:
+#        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:13.2.3-slim
+    container_name: grafana
+    volumes:
+      - ./monitoring/grafana/provisioning/datasources:/etx/grafana/provisioning/datasources
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environments:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_LOG_LEVEL=warn
+      - GF_PLUGINS_PREINSTALL_SYNC=prometheus
+    restart: unless-stopped
+    networks:
+      - ADXNetwork
+    depends_on:
+      - prometheus
+      condition: service_healthy
 
 networks:
   ADXNetwork:
