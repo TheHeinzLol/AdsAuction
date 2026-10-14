@@ -15,4 +15,5 @@ scrape_configs:
 
   - job_name: 'ows'
     static_configs:
-      -targets: ['http://ows:8042']
+      - targets: ["ows:8041"]
+

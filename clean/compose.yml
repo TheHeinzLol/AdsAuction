@@ -9,12 +9,12 @@ services:
     volumes:
       - ./SSP/src:/app/src
     healthcheck:
-      test: ["CMD", "python", "-c",
+      test:  ["CMD", "python", "-c",
       "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
       interval: 86400s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 3s
     networks:
       - ADXNetwork
     restart: on-failure
@@ -27,6 +27,13 @@ services:
       - SSP_URL=http://ssp:8000
     volumes:
       - ./OWS/src:/app/src
+    healthcheck:
+      test: ["CMD", "python", "-c",
+      "import urllib.request; urllib.request.urlopen('http://localhost:8041/metrics')"]
+      interval: 86400s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     depends_on:
       ssp:
         condition: service_healthy
@@ -40,7 +47,9 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.ymlA
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
     restart: unless-stopped
     networks:
       - ADXNetwork
@@ -58,10 +67,10 @@ services:
     image: grafana/grafana:13.2.3-slim
     container_name: grafana
     volumes:
-      - ./monitoring/grafana/provisioning/datasources:/etx/grafana/provisioning/datasources
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
-    environments:
+    environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_LOG_LEVEL=warn
       - GF_PLUGINS_PREINSTALL_SYNC=prometheus
@@ -69,8 +78,8 @@ services:
     networks:
       - ADXNetwork
     depends_on:
-      - prometheus
-      condition: service_healthy
+      prometheus:
+        condition: service_healthy
 
 networks:
   ADXNetwork:
