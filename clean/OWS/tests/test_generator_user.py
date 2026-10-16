@@ -2,7 +2,7 @@
 Tests for generator.py — verifies output structure, type, and guarantees.
 """
 
-from OWS.src.generator_user import main
+from OWS.src.generator_user import main, UserProfile
 from OWS.src.user_data import DEVICES
 
 # ===== STRUCTURAL =====
@@ -16,22 +16,14 @@ def test_returns_dict():
 def test_has_exactly_expected_fields():
     """Output must contain all of the expected fields and only those."""
     user = main()
-    expected = {
-        "device",
-        "channel",
-        "ad_size",
-        "region",
-        "languages",
-        "local_hour",
-        "categories",
-    }
-    assert set(user.keys()) == expected, (
-        f"Expected fields {expected}, got {set(user.keys())}"
-    )
+    expected_keys = UserProfile.__required_keys__
+    assert set(user.keys()) == expected_keys, f"Expected fields {expectedi_keys}, got {set(user.data.keys())}"
 
 
 # ===== TYPE =====
 
+def test_user_id_is_string():
+    assert isinstance(main()["user_id"], str)
 
 def test_device_is_string():
     assert isinstance(main()["device"], str)
@@ -54,8 +46,8 @@ def test_languages_is_list():
     assert isinstance(main()["languages"], list)
 
 
-def test_categories_is_list():
-    assert isinstance(main()["categories"], list)
+def test_preference_is_str():
+    assert isinstance(main()["preference"], str)
 
 
 def test_local_hour_is_int():
@@ -72,15 +64,6 @@ def test_languages_not_empty():
 def test_languages_unique():
     user = main()
     assert len(user["languages"]) == len(set(user["languages"]))
-
-
-def test_categories_not_empty():
-    assert len(main()["categories"]) > 0
-
-
-def test_categories_unique():
-    user = main()
-    assert len(user["categories"]) == len(set(user["categories"]))
 
 
 def test_local_hour_in_range():
