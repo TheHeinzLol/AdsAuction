@@ -19,7 +19,6 @@ COUNTRIES_LANGUAGES = {
 CATEGORIES = list(
     {
         "technology",
-        "beauty",
         "gaming",
         "sports",
         "finance",
@@ -29,6 +28,7 @@ CATEGORIES = list(
         "pets",
         "movies",
         "music",
+        "travel",
     }
 )
 

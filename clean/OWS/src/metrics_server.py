@@ -1,4 +1,3 @@
-
 import logging
 
 from prometheus_client import start_http_server
@@ -14,4 +13,3 @@ def start_metrics_server(port: int = 8041) -> None:
         f"Metrics available at http://localhost:{port}/metrics",
     )
     return (server, thread)
-

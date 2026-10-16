@@ -6,6 +6,7 @@ import sys
 
 from .generator_request import worker_workload
 from .metrics_server import start_metrics_server
+from .user_pool import populate_user_pool
 from .worker_render import worker_render
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,8 @@ METRICS_PORT = os.getenv("METRICS_PORT", 8041)
 async def main(requests_per_second: int, metrics_server_port: int = METRICS_PORT):
     # starting a metrics server for prometheus to scrape
     prometheus_server, thread = start_metrics_server(metrics_server_port)
+    # create user pool
+    populate_user_pool(10000)
     # Graceful stop set up
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()

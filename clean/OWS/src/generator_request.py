@@ -2,15 +2,16 @@ import asyncio
 import logging
 import os
 import sys
-from random import random
+from random import choice, random
 from time import perf_counter
 from urllib.parse import urljoin
 
 import aiohttp
 
 from .delayed_queue import schedule
-from .generator_user import generate_user
-from .metrics import AD_REQUESTS_SENT, RENDERS_SKIPPED, AD_REQUEST_DURATION
+from .publisher_data import PUBLISHERS
+from .user_pool import USER_POOL, user_exhaust_check
+from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT, RENDERS_SKIPPED
 
 logger = logging.getLogger(__name__)
 # Read from environment, fall back to localhost.
@@ -69,8 +70,9 @@ async def generate_request_batch(
 async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
     try:
         before_request = perf_counter()
-        async with session.post(url=url, json=generate_user()) as response:
-            response_time = (perf_counter() - before_request) * 1000 # ms instead of s
+        user, json = generate_request_data()
+        async with session.post(url=url, json=json) as response:
+            response_time = (perf_counter() - before_request) * 1000  # ms instead of s
             resp = await response.json()
             if response.status != 200:
                 logger.info(
@@ -94,11 +96,29 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
                 else:
                     RENDERS_SKIPPED.inc()
                     logger.debug(f"Not scheduling {resp['auction_id']}")
+            # manage user
+            user.increment_request_counter()
+            user_exhaust_check(user)
             return resp
     except Exception as e:
         logger.error(f"ad request failed. error:\n{e}")
         return {"error": str(e), "error_type": type(e).__name__}
 
+def generate_request_data():
+    # get user from user_pool
+    user = choice(USER_POOL)
+    # decide if publisher will match user's preference or will be chosen randomly
+    if random() > 0.33:
+        publishers = [publisher for publisher in PUBLISHERS
+                      if publisher["category"]==user.data["preference"]]
+    else:
+        publishers = PUBLISHERS
+    # get a publisher
+    publisher = choice(publishers)
+    request_data = {**user.data, **publisher}
+    del request_data["preference"]
+    # return user
+    return user, request_data
 
 if __name__ == "__main__":
     num_requests = int(sys.argv[1])

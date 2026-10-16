@@ -1,16 +1,42 @@
-import asyncio
-from unittest.mock import AsyncMock, patch
-
 import aiohttp
+import asyncio
 from aioresponses import aioresponses
+from typing import TypedDict
+from unittest.mock import AsyncMock, patch
 
 from OWS.src.generator_request import (
     generate_request_batch,
+    generate_request_data,
     generate_workload,
     make_ad_request,
 )
+from OWS.src.user_pool import USER_POOL, populate_user_pool
 
 mock_url = "http://localhost:8000"
+
+
+# ===== generate_request_data =====
+
+
+class RequestDataProfile(TypedDict):
+    user_id: str
+    publisher_id: str
+    device: str
+    channel: str
+    category: str
+    ad_size: tuple[int, int] | None
+    region: str
+    languages: list[str]
+    local_hour: int
+    floor_price: float
+
+def test_generate_request_data_correct_return():
+    populate_user_pool(1)
+    _, request_data = generate_request_data()
+    expected_keys = RequestDataProfile.__required_keys__
+    assert set(request_data.keys()) == expected_keys, f"Expected fields {expected_keys}, got {set(request_data.keys())}"
+
+
 # ===== make_ad_request =====
 
 
@@ -28,8 +54,7 @@ async def test_make_ad_request_returns_parsed_json_on_200():
         )
         async with aiohttp.ClientSession() as session:
             result = await make_ad_request(session=session, url=mock_url)
-
-        assert result["ad_url"] == "pytest mock ad url"
+        assert result["ad_url"] == "pytest mock ad url", f"Result: {result}"
         assert result["auction_id"] == "some hash"
         assert isinstance(result["ttl"], int)
 
