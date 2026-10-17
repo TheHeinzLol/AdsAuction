@@ -22,7 +22,7 @@ SSP_URL = os.getenv("SSP_URL", "http://localhost:8000")
 async def worker_workload(requests_per_second: int, stop: asyncio.Event):
     """Set up client session and run workload generator forever"""
 
-    url = urljoin(SSP_URL, "/ssp_mock")
+    url = urljoin(SSP_URL, "/ad_request")
     async with aiohttp.ClientSession() as session:
         logger.debug("Starting generate_workload")
         await generate_workload(session, url, requests_per_second, stop)
@@ -76,7 +76,7 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
             resp = await response.json()
             if response.status != 200:
                 logger.info(
-                    f"ad request not 200:\ngot status: {response.status}\nbody:\n{resp}"
+                    f"Ad request did not return 200:\ngot status: {response.status}\nbody:\n{resp}"
                 )
                 AD_REQUESTS_SENT.labels(status="error").inc()
                 AD_REQUEST_DURATION.labels(status="error").observe(response_time)
