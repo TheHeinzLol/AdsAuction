@@ -86,16 +86,16 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
                 roll = random()
                 # immediate render
                 if roll < 0.85:
-                    logger.debug(f"Scheduling {resp['auction_id']}")
-                    schedule(ttl=0, auction_id=resp["auction_id"])
+                    logger.debug(f"Scheduling {resp["auction_id_ssp"]}")
+                    schedule(ttl=0, auction_id=resp["auction_id_ssp"])
                 # expire
                 elif roll < 0.95:
-                    logger.debug(f"Scheduling {resp['auction_id']}")
-                    schedule(ttl=resp["ttl"], auction_id=resp["auction_id"])
+                    logger.debug(f"Scheduling {resp["auction_id_ssp"]}")
+                    schedule(ttl=resp["ttl"], auction_id=resp["auction_id_ssp"])
                 # 5% chance to skip rendering entirely: adblock or page abandon etc.
                 else:
                     RENDERS_SKIPPED.inc()
-                    logger.debug(f"Not scheduling {resp['auction_id']}")
+                    logger.debug(f"Not scheduling {resp["auction_id_ssp"]}")
             # manage user
             user.increment_request_counter()
             user_exhaust_check(user)
