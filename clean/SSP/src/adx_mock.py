@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from random import uniform
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import Body, FastAPI, Request
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -13,8 +13,12 @@ num_adx_endpoints = 3
 
 
 class AdResponse(BaseModel):
+    """
+    This dict is returned to ssp as answer for ad request.
+    """
     adx_id: str
     auction_id: str
+    auction_id_ssp: str
     ad_url: str
     bid_amount: float
 
@@ -57,14 +61,15 @@ async def helth_check():
 # ===== Helper functions =====
 
 
-async def adx_ad_request(request: Request):
+async def adx_ad_request(request: Request, payload: dict=Body()):
     adx_id = request.url.path.split("/")[-1]
-
+    auction_id_ssp = payload["auction_id_ssp"]
     return {
         "adx_id": adx_id,
         "auction_id": str(uuid4())[:8],
+        "auction_id_ssp": auction_id_ssp,
         "ad_url": f"{adx_id} mock ad url",
-        "bid_amount": uniform(0, 6),
+        "bid_amount": round(uniform(0, 6), 2),
     }
 
 
@@ -72,3 +77,5 @@ async def adx_render_confirm(request: Request):
     adx_id = request.url.path.split("/")[-1]
 
     return {"adx_id": adx_id, "render_status": "confirmed"}
+
+

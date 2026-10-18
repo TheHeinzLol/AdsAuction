@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger(__name__)
-logger.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 
 @asynccontextmanager
@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()#(lifespan=lifespan)
 ADX_URL = os.getenv("ADX_URL", "http://localhost:8001")
 
 
@@ -42,28 +42,41 @@ class AdRequest(BaseModel):
 
 @app.post("/ad_request")
 async def ssp_answer(payload: AdRequest) -> dict:
-
-    async with aiohttp.ClientSession as session:
+    payload_dict = payload.model_dump()
+    publisher_id = payload_dict.pop("publisher_id")
+    auction_id = str(uuid4())[:8]
+    json_adx = {**payload_dict, **{"auction_id_ssp": auction_id}}
+    logger.debug(f"\nPayload:\n{payload_dict}\njson_adx:\n{json_adx}")
+    async with aiohttp.ClientSession() as session:
+        bids = []
         for adx_id in range(3):
+            logger.debug(f"Sending request to adx_{adx_id}")
+            # TODO bring out adx ad request to separate funcion
             async with session.post(
-                url=urljoin(ADX_URL, f"/adx_{adx_id}_ad_request"), json=payload
+                url=urljoin(ADX_URL, f"/adx_{adx_id}_ad_request"),
+                json=json_adx
             ) as response:
-                resp = response.json()
+                resp = await response.json()
                 if response.status != 200:
                     logger.info(
                         f"Ad request did not return 200. Got status: {response.status}\n"
                         f"Response body:\n{resp}"
                     )
                 else:
-                    return {
-                        "ad_url": "ssp to ows mock ad url",
-                        "auction_id": str(uuid4())[:8],  # to escape dealing with long id for a simple mock
-                        "ttl": choice([5, 10, 15]),
-                    }
+                    logger.debug(f"\nresponse:\n{resp}")
+                    bids.append(resp)
+
+        winner = max(bids, key=lambda b:b["bid_amount"])
+        ad_response = {**winner, **{"aucion_id_ssp": auction_id}}
+        logger.debug(f"\nad_response:\n{ad_response}")
+        logger.debug(f"\nWinner:\n{winner}")
+        del ad_response["auction_id"]
+        return ad_response
 
 
 @app.post("/confirm_render")
 async def confirm_render() -> dict:
+
     return {"render": "accepted"}
 
 
