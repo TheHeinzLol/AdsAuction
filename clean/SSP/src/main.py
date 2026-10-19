@@ -87,7 +87,9 @@ async def ssp_answer(payload: AdRequest, request: Request) -> AdResponse:
     if not bids:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     logger.debug(f"bids:\n{bids}")
-    winner = max(bids, key=lambda b: b["bid_amount"])
+    # This is overkill for a single line but I brought it out in case of complex 
+    # winner determination algo
+    winner = determine_winner(bids)
     logger.debug(f"Winner:\n{winner}")
     ad_response = {**winner, "aucion_id_ssp": auction_id}
     db_insert["auction_id_adx"] = ad_response.pop("auction_id_adx")
@@ -128,3 +130,7 @@ async def send_ad_request(session: aiohttp.ClientSession, url: str, json: dict) 
             logger.debug(f"Response:\n{response_json}")
             if "bid_amount" in response_json:
                 return response_json
+
+def determine_winner(bids: list[dict]) -> dict:
+    winner = max(bids, key=lambda b: b["bid_amount"])
+    return winner
