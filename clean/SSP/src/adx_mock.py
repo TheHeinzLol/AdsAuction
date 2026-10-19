@@ -1,9 +1,9 @@
 import logging
 from contextlib import asynccontextmanager
-from random import uniform
+from random import random, uniform
 from uuid import uuid4
 
-from fastapi import Body, FastAPI, Request
+from fastapi import Body, FastAPI, Response, Request, status
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -64,12 +64,15 @@ async def helth_check():
 async def adx_ad_request(request: Request, payload: dict=Body()):
     adx_id = request.url.path.split("/")[-1]
     auction_id_ssp = payload["auction_id_ssp"]
+    if random < 0.1:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     return {
         "adx_id": adx_id,
         "auction_id": str(uuid4())[:8],
         "auction_id_ssp": auction_id_ssp,
         "ad_url": f"{adx_id} mock ad url",
         "bid_amount": round(uniform(0, 6), 2),
+        "ttl": choice[5, 10, 15]
     }
 
 
