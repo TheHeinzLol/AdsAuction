@@ -68,38 +68,40 @@ async def generate_request_batch(
 
 
 async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
+    before_request = perf_counter()
+    user, json = generate_request_data()
     try:
-        before_request = perf_counter()
-        user, json = generate_request_data()
         async with session.post(url=url, json=json) as response:
             response_time = (perf_counter() - before_request) * 1000  # ms instead of s
-            resp = await response.json()
             if response.status != 200:
+                response_text = await response.text()
                 logger.info(
-                    f"Ad request did not return 200:\ngot status: {response.status}\nbody:\n{resp}"
+                    f"Ad request did not return 200:\ngot status: {response.status}\nbody:\n{response_text}"
                 )
                 AD_REQUESTS_SENT.labels(status="error").inc()
                 AD_REQUEST_DURATION.labels(status="error").observe(response_time)
+                return response_text
             else:
+                response_json = await response.json()
                 AD_REQUESTS_SENT.labels(status="success").inc()
                 AD_REQUEST_DURATION.labels(status="success").observe(response_time)
                 roll = random()
                 # immediate render
                 if roll < 0.85:
-                    logger.debug(f"Scheduling {resp["auction_id_ssp"]}")
-                    schedule(ttl=0, auction_id=resp["auction_id_ssp"])
+                    logger.debug(f"Scheduling {response_json["auction_id_ssp"]}")
+                    schedule(ttl=0, auction_id=response_json["auction_id_ssp"])
                 # expire
                 elif roll < 0.95:
-                    logger.debug(f"Scheduling {resp["auction_id_ssp"]}")
-                    schedule(ttl=resp["ttl"], auction_id=resp["auction_id_ssp"])
+                    logger.debug(f"Scheduling {response_json["auction_id_ssp"]}")
+                    schedule(ttl=response_json["ttl"], auction_id=response_json["auction_id_ssp"])
                 # 5% chance to skip rendering entirely: adblock or page abandon etc.
                 else:
                     RENDERS_SKIPPED.inc()
-                    logger.debug(f"Not scheduling {resp["auction_id_ssp"]}")
+                    logger.debug(f"Not scheduling {response_json["auction_id_ssp"]}")
             # manage user
             user.increment_request_counter()
             user_exhaust_check(user)
-            return resp
+            return response_json
     except Exception as e:
         logger.error(f"ad request failed. error:\n{e}")
         return {"error": str(e), "error_type": type(e).__name__}

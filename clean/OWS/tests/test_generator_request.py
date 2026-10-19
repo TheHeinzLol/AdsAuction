@@ -59,14 +59,14 @@ async def test_make_ad_request_returns_parsed_json_on_200():
         assert isinstance(result["ttl"], int)
 
 
-async def test_make_ad_request_returns_body_on_non_200():
+async def test_make_ad_request_returns_text_on_non_200():
     """On non-200, still returns parsed JSON body."""
     with aioresponses() as mocked:
         mocked.post(mock_url, status=500, payload={"error": "internal server error"})
         async with aiohttp.ClientSession() as session:
             result = await make_ad_request(session=session, url=mock_url)
 
-    assert result["error"] == "internal server error"
+    assert isinstance(result, str) 
 
 
 async def test_make_ad_request_returns_dict_on_exception():
