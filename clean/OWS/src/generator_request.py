@@ -4,13 +4,14 @@ import os
 import sys
 from random import choice, random
 from time import perf_counter
+from typing import TypedDict
 from urllib.parse import urljoin
 
 import aiohttp
 
 from .delayed_queue import schedule
 from .publisher_data import PUBLISHERS
-from .user_pool import USER_POOL, user_exhaust_check
+from .user_pool import User, USER_POOL, user_exhaust_check
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT, RENDERS_SKIPPED
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,18 @@ logger = logging.getLogger(__name__)
 # This allows me to edit the script without launching docker compose every time
 SSP_URL = os.getenv("SSP_URL", "http://localhost:8000")
 
+
+class RequestDataProfile(TypedDict):
+    user_id: str
+    publisher_id: str
+    floor_price: float
+    device: str
+    channel: str
+    category: str
+    ad_size: tuple[int, int] | None
+    region: str
+    languages: list[str]
+    local_hour: int
 
 async def worker_workload(requests_per_second: int, stop: asyncio.Event):
     """Set up client session and run workload generator forever"""
@@ -113,7 +126,7 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
         return {"error": str(e), "error_type": type(e).__name__}
 
 
-def generate_request_data():
+def generate_request_data() -> tuple[User, RequestDataProfile]:
     # get user from user_pool
     user = choice(USER_POOL)
     # decide if publisher will match user's preference or will be chosen randomly
