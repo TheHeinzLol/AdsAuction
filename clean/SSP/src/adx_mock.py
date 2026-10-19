@@ -1,13 +1,16 @@
 import logging
 from contextlib import asynccontextmanager
-from random import random, uniform
+from random import choice, random, uniform
 from uuid import uuid4
 
-from fastapi import Body, FastAPI, Response, Request, status
+from fastapi import Body, FastAPI, Request, Response, status
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(levelname)s [%(funcName)s]:\n%(message)s",
+)
 
 num_adx_endpoints = 3
 
@@ -16,11 +19,13 @@ class AdResponse(BaseModel):
     """
     This dict is returned to ssp as answer for ad request.
     """
+
     adx_id: str
-    auction_id: str
+    auction_id_adx: str
     auction_id_ssp: str
     ad_url: str
     bid_amount: float
+    ttl: int
 
 
 @asynccontextmanager
@@ -61,18 +66,19 @@ async def helth_check():
 # ===== Helper functions =====
 
 
-async def adx_ad_request(request: Request, payload: dict=Body()):
+async def adx_ad_request(request: Request, payload: dict = Body):
     adx_id = request.url.path.split("/")[-1]
     auction_id_ssp = payload["auction_id_ssp"]
-    if random < 0.1:
+    logger.debug(f"auction_id_ssp:\n{auction_id_ssp}")
+    if random() < 0.99:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     return {
         "adx_id": adx_id,
-        "auction_id": str(uuid4())[:8],
+        "auction_id_adx": str(uuid4())[:8],
         "auction_id_ssp": auction_id_ssp,
         "ad_url": f"{adx_id} mock ad url",
         "bid_amount": round(uniform(0, 6), 2),
-        "ttl": choice[5, 10, 15]
+        "ttl": choice([5, 10, 15]),
     }
 
 
@@ -80,5 +86,3 @@ async def adx_render_confirm(request: Request):
     adx_id = request.url.path.split("/")[-1]
 
     return {"adx_id": adx_id, "render_status": "confirmed"}
-
-

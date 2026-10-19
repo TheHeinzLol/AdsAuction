@@ -1,27 +1,32 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from random import choice  # for choosing a ttl
 from urllib.parse import urljoin
 from uuid import uuid4
 
 import aiohttp
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI, Request, Response, status
 from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(levelname)s [%(funcName)s]:\n%(message)s",
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    access_logger = logging.getLogger("uvicorn.access")
-    access_logger.disabled = True
+    # access_logger = logging.getLogger("uvicorn.access")
+    # access_logger.disabled = True
+    app.state.ad_request_session = aiohttp.ClientSession()
+    # app.state.render_session = aiohttp.ClientSession()
 
     yield
 
 
-app = FastAPI()#(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan)
 ADX_URL = os.getenv("ADX_URL", "http://localhost:8001")
 
 
@@ -30,6 +35,7 @@ class AdRequest(BaseModel):
 
     user_id: str
     publisher_id: str
+    floor_price: float
     device: str
     channel: str
     ad_size: list | None
@@ -37,55 +43,61 @@ class AdRequest(BaseModel):
     languages: list[str]
     local_hour: int
     category: str
-    floor_price: float
+
 
 class AdResponse(BaseModel):
-    adx_id: str
     auction_id_ssp: str
     ad_url: str
-    bid_amount: float
     ttl: int
 
 
+class UserInfo(BaseModel):
+    user_id: str
+    auction_id_ssp: str
+    floor_price: float
+    device: str
+    channel: str
+    ad_size: list | None
+    region: str
+    languages: list[str]
+    local_hour: int
+    category: str
+
 
 @app.post("/ad_request")
-async def ssp_answer(payload: AdRequest) -> dict:
+async def ssp_answer(payload: AdRequest, request: Request) -> AdResponse:
+    session = request.app.state.ad_request_session
     payload_dict = payload.model_dump()
     logger.debug(f"Raw payload dict:\n{payload_dict}")
-    publisher_id = payload_dict.pop("publisher_id")
     auction_id = str(uuid4())[:8]
-    json_adx = {**payload_dict, **{"auction_id_ssp": auction_id}}
-    logger.debug(f"json_adx:\n{json_adx}")
-    async with aiohttp.ClientSession() as session:
-        bids = []
-        for adx_id in range(3):
-            logger.debug(f"Sending request to adx_{adx_id}")
-            # TODO bring out adx ad request to separate funcion
-            # TODO handle empty bids
-            async with session.post(
-                url=urljoin(ADX_URL, f"/adx_{adx_id}_ad_request"),
-                json=json_adx
-            ) as response:
-                resp = await response.json()
-                if response.status != 200:
-                    logger.info(
-                        f"Ad request did not return 200. Got status: {response.status}\n"
-                        f"Response body:\n{resp}"
-                    )
-                else:
-                    logger.debug(f"response:\n{resp}")
-                    if "bid_amount" in resp:
-                        bids.append(resp)
-        if not bids:
-            return Response(status_code=status.HTTP_204_NO_CONTENT)
+    db_insert ={
+            "auction_id_ssp": auction_id,
+            "publisher_id": payload_dict.pop("publisher_id"),
+    }
+    json_user_info = {**payload_dict, "auction_id_ssp": auction_id}
+    logger.debug(f"json_user_info:\n{json_user_info}")
 
-        winner = max(bids, key=lambda b:b["bid_amount"])
-        logger.debug(f"Winner:\n{winner}")
-        ad_response = {**winner, **{"aucion_id_ssp": auction_id}}
-        del ad_response["auction_id"]
-        logger.debug(f"ad_response:\n{ad_response}")
+    adx_urls = [urljoin(ADX_URL, f"/adx_{adx_id}_ad_request") for adx_id in range(3)]
+    tasks = [
+        send_ad_request(session=session, url=adx_url, json=json_user_info)
+        for adx_url in adx_urls
+    ]
+    responses = await asyncio.gather(*tasks)
+    bids = [response for response in responses if response is not None]
+    if not bids:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    logger.debug(f"bids:\n{bids}")
+    winner = max(bids, key=lambda b: b["bid_amount"])
+    logger.debug(f"Winner:\n{winner}")
+    ad_response = {**winner, "aucion_id_ssp": auction_id}
+    db_insert["auction_id_adx"] = ad_response.pop("auction_id_adx")
+    db_insert["win_adx_id"] = ad_response.pop("adx_id")
+    db_insert["win_bid"] = ad_response.pop("bid_amount")
 
-        return ad_response
+    logger.debug(f"ad_response:\n{ad_response}")
+    logger.debug(f"db_insert:\n{db_insert}")
+
+    return ad_response
 
 
 @app.post("/confirm_render")
@@ -97,3 +109,22 @@ async def confirm_render() -> dict:
 @app.get("/healthz")
 async def healthz():
     return {"status": "healthy"}
+
+
+# ===== HELPERS =====
+async def send_ad_request(session: aiohttp.ClientSession, url: str, json: dict) -> dict:
+    logger.debug(f"Sending request to {url}")
+    # TODO bring out adx ad request to separate funcion
+    # TODO handle empty bids
+    async with session.post(url=url, json=json) as response:
+        if response.status != 200:
+            response_text = await response.text()
+            logger.info(
+                f"Ad request did not return 200. Got status: {response.status}\n"
+                f"Response body:\n{response_text}"
+            )
+        else:
+            response_json = await response.json()
+            logger.debug(f"Response:\n{response_json}")
+            if "bid_amount" in response_json:
+                return response_json
