@@ -9,6 +9,7 @@ from OWS.src.generator_request import (
     generate_request_data,
     generate_workload,
     make_ad_request,
+    RequestDataProfile,
 )
 from OWS.src.user_pool import USER_POOL, populate_user_pool
 
@@ -16,19 +17,6 @@ mock_url = "http://localhost:8000"
 
 
 # ===== generate_request_data =====
-
-
-class RequestDataProfile(TypedDict):
-    user_id: str
-    publisher_id: str
-    floor_price: float
-    device: str
-    channel: str
-    category: str
-    ad_size: tuple[int, int] | None
-    region: str
-    languages: list[str]
-    local_hour: int
 
 def test_generate_request_data_correct_return():
     populate_user_pool(1)
