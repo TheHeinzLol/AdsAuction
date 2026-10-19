@@ -1,7 +1,7 @@
-
 from random import randint
 from uuid import uuid4
 from .generator_user import generate_user
+
 
 class User:
     def __init__(self):
@@ -18,14 +18,16 @@ class User:
     def increment_request_counter(self):
         self.request_counter += 1
 
+
 USER_POOL = []
+
 
 def user_exhaust_check(user: User):
     if user.is_exhausted():
         USER_POOL.remove(user)
         USER_POOL.append(User())
 
-def populate_user_pool(population: int=10000):
+
+def populate_user_pool(population: int = 10000):
     USER_POOL.clear()
     USER_POOL.extend(User() for _ in range(population))
-

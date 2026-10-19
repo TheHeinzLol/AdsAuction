@@ -1,14 +1,18 @@
 # publisher_data.py
 PUBLISHERS = [
     # Sports
-    {"publisher_id": "pub_espn",        "category": "sports", "floor_price": 2.50},
-    {"publisher_id": "pub_bleacher",    "category": "sports", "floor_price": 1.20},
+    {"publisher_id": "pub_espn", "category": "sports", "floor_price": 2.50},
+    {"publisher_id": "pub_bleacher", "category": "sports", "floor_price": 1.20},
     {"publisher_id": "pub_f1_official", "category": "sports", "floor_price": 3.00},
     # Automotive
-    {"publisher_id": "pub_car_and_driver", "category": "automotive", "floor_price": 2.00},
-    {"publisher_id": "pub_motortrend",     "category": "automotive", "floor_price": 1.80},
+    {
+        "publisher_id": "pub_car_and_driver",
+        "category": "automotive",
+        "floor_price": 2.00,
+    },
+    {"publisher_id": "pub_motortrend", "category": "automotive", "floor_price": 1.80},
     # Technology
-    {"publisher_id": "pub_techcrunch",     "category": "technology", "floor_price": 2.00},
+    {"publisher_id": "pub_techcrunch", "category": "technology", "floor_price": 2.00},
     {"publisher_id": "pub_ars", "category": "technology", "floor_price": 1.50},
     # Pets
     {"publisher_id": "pub_petmd", "category": "pets", "floor_price": 1.00},
@@ -41,4 +45,3 @@ PUBLISHERS = [
     {"publisher_id": "pub_spotify", "category": "music", "floor_price": 0.1},
     {"publisher_id": "pub_soundcloud", "category": "music", "floor_price": 0.5},
 ]
-

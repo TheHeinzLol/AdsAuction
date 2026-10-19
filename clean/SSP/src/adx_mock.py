@@ -1,6 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
-from random import choice, random, uniform
+from random import choice, choices, randint, random, uniform
 from uuid import uuid4
 
 from fastapi import Body, FastAPI, Request, Response, status
@@ -23,8 +23,9 @@ class AdResponse(BaseModel):
     adx_id: str
     auction_id_adx: str
     auction_id_ssp: str
-    ad_url: str
     bid_amount: float
+    ad_url: str
+    categories: list[str]
     ttl: int
 
 
@@ -67,17 +68,36 @@ async def helth_check():
 
 
 async def adx_ad_request(request: Request, payload: dict = Body):
+    if random() < 0.1:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     adx_id = request.url.path.split("/")[-1]
     auction_id_ssp = payload["auction_id_ssp"]
+    categories_good = [
+        "technology",
+        "gaming",
+        "sports",
+        "finance",
+        "fashion",
+        "health",
+        "food",
+        "pets",
+        "movies",
+        "music",
+        "travel",
+    ]
+    categories_bad = ["gambling", "porn", "anime", "AI"]
+    categories = choices(categories_good, k=randint(1, 3))
+    if random() < 0.1:
+        categories.append(choice(categories_bad))
     logger.debug(f"auction_id_ssp:\n{auction_id_ssp}")
-    if random() < 0.99:
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
     return {
         "adx_id": adx_id,
         "auction_id_adx": str(uuid4())[:8],
         "auction_id_ssp": auction_id_ssp,
-        "ad_url": f"{adx_id} mock ad url",
         "bid_amount": round(uniform(0, 6), 2),
+        "ad_url": f"{adx_id} mock ad url",
+        "categories": categories,
         "ttl": choice([5, 10, 15]),
     }
 

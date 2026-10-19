@@ -2,7 +2,7 @@ import aiohttp
 import asyncio
 from aioresponses import aioresponses
 from typing import TypedDict
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from OWS.src.generator_request import (
     generate_request_batch,
@@ -53,10 +53,11 @@ async def test_make_ad_request_returns_parsed_json_on_200():
             },
         )
         async with aiohttp.ClientSession() as session:
-            result = await make_ad_request(session=session, url=mock_url)
-        assert result["ad_url"] == "pytest mock ad url", f"Result: {result}"
-        assert result["auction_id_ssp"] == "some hash"
-        assert isinstance(result["ttl"], int)
+            with patch("OWS.src.generator_request.schedule", return_value=MagicMock()):
+                result = await make_ad_request(session=session, url=mock_url)
+    assert result["ad_url"] == "pytest mock ad url", f"Result: {result}"
+    assert result["auction_id_ssp"] == "some hash"
+    assert isinstance(result["ttl"], int)
 
 
 async def test_make_ad_request_returns_text_on_non_200():
@@ -81,7 +82,6 @@ async def test_make_ad_request_returns_dict_on_exception():
 
     assert "error" in result
     assert result["error_type"] == "TimeoutError"
-
 
 # ===== generate_request_batch =====
 

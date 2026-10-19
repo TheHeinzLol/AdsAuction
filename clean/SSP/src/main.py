@@ -70,9 +70,9 @@ async def ssp_answer(payload: AdRequest, request: Request) -> AdResponse:
     payload_dict = payload.model_dump()
     logger.debug(f"Raw payload dict:\n{payload_dict}")
     auction_id = str(uuid4())[:8]
-    db_insert ={
-            "auction_id_ssp": auction_id,
-            "publisher_id": payload_dict.pop("publisher_id"),
+    db_insert = {
+        "auction_id_ssp": auction_id,
+        "publisher_id": payload_dict.pop("publisher_id"),
     }
     json_user_info = {**payload_dict, "auction_id_ssp": auction_id}
     logger.debug(f"json_user_info:\n{json_user_info}")
@@ -87,7 +87,7 @@ async def ssp_answer(payload: AdRequest, request: Request) -> AdResponse:
     if not bids:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     logger.debug(f"bids:\n{bids}")
-    # This is overkill for a single line but I brought it out in case of complex 
+    # This is overkill for a single line but I brought it out in case of complex
     # winner determination algo
     winner = determine_winner(bids)
     logger.debug(f"Winner:\n{winner}")
@@ -116,8 +116,6 @@ async def healthz():
 # ===== HELPERS =====
 async def send_ad_request(session: aiohttp.ClientSession, url: str, json: dict) -> dict:
     logger.debug(f"Sending request to {url}")
-    # TODO bring out adx ad request to separate funcion
-    # TODO handle empty bids
     async with session.post(url=url, json=json) as response:
         if response.status != 200:
             response_text = await response.text()
@@ -130,6 +128,7 @@ async def send_ad_request(session: aiohttp.ClientSession, url: str, json: dict) 
             logger.debug(f"Response:\n{response_json}")
             if "bid_amount" in response_json:
                 return response_json
+
 
 def determine_winner(bids: list[dict]) -> dict:
     winner = max(bids, key=lambda b: b["bid_amount"])

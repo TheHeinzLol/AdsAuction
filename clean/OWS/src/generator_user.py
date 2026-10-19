@@ -5,7 +5,6 @@ from uuid import uuid4
 from .user_data import CATEGORIES, COUNTRIES_LANGUAGES, DEVICE_WEIGHTS, DEVICES
 
 
-
 class UserProfile(TypedDict):
     user_id: str
     device: str

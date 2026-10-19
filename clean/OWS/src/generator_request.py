@@ -70,8 +70,11 @@ async def generate_request_batch(
 async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
     before_request = perf_counter()
     user, json = generate_request_data()
+    timeout_seconds = 0.1
     try:
-        async with session.post(url=url, json=json) as response:
+        async with session.post(
+            url=url, json=json, timeout=aiohttp.ClientTimeout(total=timeout_seconds)
+        ) as response:
             response_time = (perf_counter() - before_request) * 1000  # ms instead of s
             if response.status != 200:
                 response_text = await response.text()
@@ -88,16 +91,19 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
                 roll = random()
                 # immediate render
                 if roll < 0.85:
-                    logger.debug(f"Scheduling {response_json["auction_id_ssp"]}")
+                    logger.debug(f"Scheduling {response_json['auction_id_ssp']}")
                     schedule(ttl=0, auction_id=response_json["auction_id_ssp"])
                 # expire
                 elif roll < 0.95:
-                    logger.debug(f"Scheduling {response_json["auction_id_ssp"]}")
-                    schedule(ttl=response_json["ttl"], auction_id=response_json["auction_id_ssp"])
+                    logger.debug(f"Scheduling {response_json['auction_id_ssp']}")
+                    schedule(
+                        ttl=response_json["ttl"],
+                        auction_id=response_json["auction_id_ssp"],
+                    )
                 # 5% chance to skip rendering entirely: adblock or page abandon etc.
                 else:
                     RENDERS_SKIPPED.inc()
-                    logger.debug(f"Not scheduling {response_json["auction_id_ssp"]}")
+                    logger.debug(f"Not scheduling {response_json['auction_id_ssp']}")
             # manage user
             user.increment_request_counter()
             user_exhaust_check(user)
@@ -106,13 +112,17 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
         logger.error(f"ad request failed. error:\n{e}")
         return {"error": str(e), "error_type": type(e).__name__}
 
+
 def generate_request_data():
     # get user from user_pool
     user = choice(USER_POOL)
     # decide if publisher will match user's preference or will be chosen randomly
     if random() > 0.33:
-        publishers = [publisher for publisher in PUBLISHERS
-                      if publisher["category"]==user.data["preference"]]
+        publishers = [
+            publisher
+            for publisher in PUBLISHERS
+            if publisher["category"] == user.data["preference"]
+        ]
     else:
         publishers = PUBLISHERS
     # get a publisher
@@ -121,6 +131,7 @@ def generate_request_data():
     del request_data["preference"]
     # return user
     return user, request_data
+
 
 if __name__ == "__main__":
     num_requests = int(sys.argv[1])
