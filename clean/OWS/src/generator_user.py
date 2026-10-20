@@ -1,11 +1,18 @@
+import logging
 from random import choice, choices, randint, sample
-from typing import TypedDict
 from uuid import uuid4
+
+from pydantic import BaseModel, ValidationError
 
 from .user_data import CATEGORIES, COUNTRIES_LANGUAGES, DEVICE_WEIGHTS, DEVICES
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(levelname)s [%(funcName)s]:\n%(message)s",
+)
 
-class UserProfile(TypedDict):
+class UserProfile(BaseModel):
     user_id: str
     device: str
     channel: str
@@ -54,12 +61,12 @@ def generate_user() -> UserProfile:
         "local_hour": local_hour,
     }
 
-    return user_info
-
-
-def main() -> dict:
-    return generate_user()
+    try:
+        UserProfile.model_validate(user_info)
+        return UserProfile(**user_info)
+    except ValidationError as e:
+        logger.error(str(e))
 
 
 if __name__ == "__main__":
-    main()
+    generate_user().model_dump()

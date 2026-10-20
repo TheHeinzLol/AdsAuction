@@ -3,7 +3,10 @@ import logging
 from prometheus_client import start_http_server
 
 logger = logging.getLogger(__name__)
-
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(levelname)s [%(funcName)s]:\n%(message)s",
+)
 
 def start_metrics_server(port: int = 8041) -> None:
     server, thread = start_http_server(port)

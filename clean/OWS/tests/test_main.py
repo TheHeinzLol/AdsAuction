@@ -20,7 +20,6 @@ async def test_main_releases_port_after_stopping_metrics_server():
     # fake worker
     async def fake_worker():
         asyncio.sleep(0.1)
-        return None
 
     with (
         patch("OWS.src.main.asyncio.Event") as mock_event,

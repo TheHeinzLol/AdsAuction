@@ -4,33 +4,33 @@ import os
 import sys
 from random import choice, random
 from time import perf_counter
-from typing import TypedDict
 from urllib.parse import urljoin
 
 import aiohttp
+from pydantic import ValidationError
+
+from shared.pydantic_models import AdRequestOWS
 
 from .delayed_queue import schedule
-from .publisher_data import PUBLISHERS
-from .user_pool import User, USER_POOL, user_exhaust_check
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT, RENDERS_SKIPPED
+from .publisher_data import PUBLISHERS
+from .user_pool import (
+    User,
+    user_exhaust_check,
+)
+from .user_pool import (
+    _user_pool as user_pool,
+)
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(levelname)s [%(funcName)s]:\n%(message)s",
+)
+
 # Read from environment, fall back to localhost.
 # This allows me to edit the script without launching docker compose every time
 SSP_URL = os.getenv("SSP_URL", "http://localhost:8000")
-
-
-class RequestDataProfile(TypedDict):
-    user_id: str
-    publisher_id: str
-    floor_price: float
-    device: str
-    channel: str
-    category: str
-    ad_size: tuple[int, int] | None
-    region: str
-    languages: list[str]
-    local_hour: int
 
 
 async def worker_workload(requests_per_second: int, stop: asyncio.Event):
@@ -83,11 +83,12 @@ async def generate_request_batch(
 
 async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
     before_request = perf_counter()
-    user, json = generate_request_data()
+    user, request_data = generate_request_data()
+    request_data = request_data.model_dump()
     timeout_seconds = 0.1
     try:
         async with session.post(
-            url=url, json=json, timeout=aiohttp.ClientTimeout(total=timeout_seconds)
+            url=url, json=request_data, timeout=aiohttp.ClientTimeout(total=timeout_seconds)
         ) as response:
             response_time = (perf_counter() - before_request) * 1000  # ms instead of s
             if response.status != 200:
@@ -114,7 +115,7 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
                         ttl=response_json["ttl"],
                         auction_id=response_json["auction_id_ssp"],
                     )
-                # 5% chance to skip rendering entirely: adblock or page abandon etc.
+                # 5% chance to skip rendering entirely: adblock, page abandoned, etc.
                 else:
                     RENDERS_SKIPPED.inc()
                     logger.debug(f"Not scheduling {response_json['auction_id_ssp']}")
@@ -127,9 +128,9 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
         return {"error": str(e), "error_type": type(e).__name__}
 
 
-def generate_request_data() -> tuple[User, RequestDataProfile]:
+def generate_request_data() -> tuple[User, AdRequestOWS]:
     # get user from user_pool
-    user = choice(USER_POOL)
+    user = choice(user_pool)
     # decide if publisher will match user's preference or will be chosen randomly
     if random() > 0.33:
         publishers = [
@@ -144,7 +145,11 @@ def generate_request_data() -> tuple[User, RequestDataProfile]:
     request_data = {**user.data, **publisher}
     del request_data["preference"]
     # return user
-    return user, request_data
+    try:
+        AdRequestOWS.model_validate(request_data)
+        return user, AdRequestOWS(**request_data)
+    except ValidationError as e:
+        logger.error(str(e))
 
 
 if __name__ == "__main__":

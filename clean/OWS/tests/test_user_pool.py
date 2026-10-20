@@ -5,20 +5,20 @@ Checks methods for user and pool consistency under operations.
 
 import pytest
 
-from OWS.src.user_pool import populate_user_pool, User, USER_POOL, user_exhaust_check
+from OWS.src.user_pool import User, _user_pool, populate_user_pool, user_exhaust_check
 
 
 @pytest.fixture(autouse=True)
 def clear_pool():
     """Clear queue."""
-    USER_POOL.clear()
+    _user_pool.clear()
     yield
-    USER_POOL.clear()
+    _user_pool.clear()
 
 
 def test_user_pool_populating():
     populate_user_pool(10)
-    assert len(USER_POOL) == 10
+    assert len(_user_pool) == 10
 
 
 def test_user_increment_request_counter():
@@ -37,10 +37,10 @@ def test_user_is_exhausted():
 
 def test_user_exhaustion_check():
     populate_user_pool(1)
-    user = USER_POOL[0]
+    user = _user_pool[0]
     user.request_limit = 1
     user_exhaust_check(user)
-    assert USER_POOL[0] == user
+    assert _user_pool[0] == user
     user.increment_request_counter()
     user_exhaust_check(user)
-    assert USER_POOL[0] != user
+    assert _user_pool[0] != user

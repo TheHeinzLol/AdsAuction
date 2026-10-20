@@ -1,52 +1,39 @@
-import aiohttp
 import asyncio
-from aioresponses import aioresponses
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import aiohttp
+from aioresponses import aioresponses
 
 from OWS.src.generator_request import (
     generate_request_batch,
-    generate_request_data,
     generate_workload,
     make_ad_request,
-    RequestDataProfile,
 )
-from OWS.src.user_pool import USER_POOL, populate_user_pool
+from OWS.src.user_pool import populate_user_pool
 
 mock_url = "http://localhost:8000"
 
-
-# ===== generate_request_data =====
-
-
-def test_generate_request_data_correct_return():
-    populate_user_pool(1)
-    _, request_data = generate_request_data()
-    expected_keys = RequestDataProfile.__required_keys__
-    assert set(request_data.keys()) == expected_keys, (
-        f"Expected fields {expected_keys}, got {set(request_data.keys())}"
-    )
-
+ad_response = {
+    "auction_id_ssp": "852cda8",
+    "ad_url": "mock ad url",
+    "ttl": 5,
+}
 
 # ===== make_ad_request =====
 
 
 async def test_make_ad_request_returns_parsed_json_on_200():
     """On 200, returns parsed JSON body."""
-    with aioresponses() as mocked:
-        mocked.post(
-            mock_url,
-            status=200,
-            payload={
-                "ad_url": "pytest mock ad url",
-                "auction_id_ssp": "some hash",
-                "ttl": 10,
-            },
-        )
+    populate_user_pool(1)
+    with (
+            aioresponses() as mocked,
+            patch("OWS.src.generator_request.schedule", return_value=MagicMock()),
+    ):
+        mocked.post(mock_url, status=200, payload=ad_response)
         async with aiohttp.ClientSession() as session:
-            with patch("OWS.src.generator_request.schedule", return_value=MagicMock()):
-                result = await make_ad_request(session=session, url=mock_url)
-    assert result["ad_url"] == "pytest mock ad url", f"Result: {result}"
-    assert result["auction_id_ssp"] == "some hash"
+            result = await make_ad_request(session=session, url=mock_url)
+    assert result["ad_url"] == "mock ad url", f"Result: {result}"
+    assert result["auction_id_ssp"] == "852cda8"
     assert isinstance(result["ttl"], int)
 
 
