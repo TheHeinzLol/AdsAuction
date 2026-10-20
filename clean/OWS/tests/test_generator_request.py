@@ -1,7 +1,6 @@
 import aiohttp
 import asyncio
 from aioresponses import aioresponses
-from typing import TypedDict
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from OWS.src.generator_request import (
@@ -18,11 +17,14 @@ mock_url = "http://localhost:8000"
 
 # ===== generate_request_data =====
 
+
 def test_generate_request_data_correct_return():
     populate_user_pool(1)
     _, request_data = generate_request_data()
     expected_keys = RequestDataProfile.__required_keys__
-    assert set(request_data.keys()) == expected_keys, f"Expected fields {expected_keys}, got {set(request_data.keys())}"
+    assert set(request_data.keys()) == expected_keys, (
+        f"Expected fields {expected_keys}, got {set(request_data.keys())}"
+    )
 
 
 # ===== make_ad_request =====
@@ -55,7 +57,7 @@ async def test_make_ad_request_returns_text_on_non_200():
         async with aiohttp.ClientSession() as session:
             result = await make_ad_request(session=session, url=mock_url)
 
-    assert isinstance(result, str) 
+    assert isinstance(result, str)
 
 
 async def test_make_ad_request_returns_dict_on_exception():
@@ -70,6 +72,7 @@ async def test_make_ad_request_returns_dict_on_exception():
 
     assert "error" in result
     assert result["error_type"] == "TimeoutError"
+
 
 # ===== generate_request_batch =====
 

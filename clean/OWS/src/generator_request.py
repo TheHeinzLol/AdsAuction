@@ -32,6 +32,7 @@ class RequestDataProfile(TypedDict):
     languages: list[str]
     local_hour: int
 
+
 async def worker_workload(requests_per_second: int, stop: asyncio.Event):
     """Set up client session and run workload generator forever"""
 

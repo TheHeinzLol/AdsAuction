@@ -17,13 +17,17 @@ def test_has_exactly_expected_fields():
     """Output must contain all of the expected fields and only those."""
     user = main()
     expected_keys = UserProfile.__required_keys__
-    assert set(user.keys()) == expected_keys, f"Expected fields {expectedi_keys}, got {set(user.data.keys())}"
+    assert set(user.keys()) == expected_keys, (
+        f"Expected fields {expectedi_keys}, got {set(user.data.keys())}"
+    )
 
 
 # ===== TYPE =====
 
+
 def test_user_id_is_string():
     assert isinstance(main()["user_id"], str)
+
 
 def test_device_is_string():
     assert isinstance(main()["device"], str)

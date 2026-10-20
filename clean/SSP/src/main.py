@@ -7,14 +7,48 @@ from uuid import uuid4
 
 import aiohttp
 from fastapi import FastAPI, Request, Response, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
+# ===== Pydantic models =====
 
+class UserInfoCommon(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: str
+    category: str
+    floor_price: float # temp until publisher policy is implemented
+    device: str
+    channel: str
+    ad_size: list[int, int] | None
+    region: str
+    languages: list[str]
+    local_hour: int
+
+class UserInfoOWS(UserInfoCommon):
+    publisher_id: str
+
+class UserInfoSSP(UserInfoCommon):
+    auction_id_ssp: str
+
+class AdResponseSSP(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    
+    auction_id_ssp: str
+    ad_url: str
+    categories: list[str]
+    ttl: int
+
+class AdResponseADX(AdResponseSSP):
+
+    adx_id: str
+    auction_id_adx: str
+    bid_amount: float
+# ===== end models =====
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,42 +64,8 @@ app = FastAPI(lifespan=lifespan)
 ADX_URL = os.getenv("ADX_URL", "http://localhost:8001")
 
 
-class AdRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    user_id: str
-    publisher_id: str
-    floor_price: float
-    device: str
-    channel: str
-    ad_size: list | None
-    region: str
-    languages: list[str]
-    local_hour: int
-    category: str
-
-
-class AdResponse(BaseModel):
-    auction_id_ssp: str
-    ad_url: str
-    ttl: int
-
-
-class UserInfo(BaseModel):
-    user_id: str
-    auction_id_ssp: str
-    floor_price: float
-    device: str
-    channel: str
-    ad_size: list | None
-    region: str
-    languages: list[str]
-    local_hour: int
-    category: str
-
-
 @app.post("/ad_request")
-async def ssp_answer(payload: AdRequest, request: Request) -> AdResponse:
+async def ssp_answer(payload: UserInfoOWS, request: Request) -> AdResponseSSP:
     session = request.app.state.ad_request_session
     payload_dict = payload.model_dump()
     logger.debug(f"Raw payload dict:\n{payload_dict}")
@@ -91,7 +91,7 @@ async def ssp_answer(payload: AdRequest, request: Request) -> AdResponse:
     # winner determination algo
     winner = determine_winner(bids)
     logger.debug(f"Winner:\n{winner}")
-    ad_response = {**winner, "aucion_id_ssp": auction_id}
+    ad_response = {**winner, "auction_id_ssp": auction_id}
     db_insert["auction_id_adx"] = ad_response.pop("auction_id_adx")
     db_insert["win_adx_id"] = ad_response.pop("adx_id")
     db_insert["win_bid"] = ad_response.pop("bid_amount")
@@ -126,10 +126,17 @@ async def send_ad_request(session: aiohttp.ClientSession, url: str, json: dict) 
         else:
             response_json = await response.json()
             logger.debug(f"Response:\n{response_json}")
-            if "bid_amount" in response_json:
+            try:
+                AdResponseADX.model_validate(response_json)
                 return response_json
+            except ValidationError as e:
+                expected_keys = set(AdResponseADX.model_fields)
+                got_keys = set(response_json.keys())
+                logger.error(str(e))
 
 
 def determine_winner(bids: list[dict]) -> dict:
     winner = max(bids, key=lambda b: b["bid_amount"])
     return winner
+
+

@@ -3,11 +3,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from OWS.src.main import main
 
+
 async def test_main_releases_port_after_stopping_metrics_server():
     """main() creates and stops prometheus server, then releases used port."""
 
     def is_port_free(port: int) -> bool:
         import socket
+
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             try:
                 sock.bind(("127.0.0.1", port))
@@ -15,7 +17,7 @@ async def test_main_releases_port_after_stopping_metrics_server():
             except OSError:
                 return False
 
-    #fake worker
+    # fake worker
     async def fake_worker():
         asyncio.sleep(0.1)
         return None
