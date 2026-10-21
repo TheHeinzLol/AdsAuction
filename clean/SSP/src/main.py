@@ -31,6 +31,8 @@ async def lifespan(app: FastAPI):
     # access_logger.disabled = True
     app.state.ad_request_session = aiohttp.ClientSession()
     # app.state.render_session = aiohttp.ClientSession()
+    # Get api keys
+    app.state.api_keys = fetch_api_keys()
 
     yield
 
@@ -99,7 +101,6 @@ async def confirm_render() -> dict:
 
     return {"render": "accepted"}
 
-
 @app.get("/healthz")
 async def healthz():
     return {"status": "healthy"}
@@ -128,5 +129,19 @@ async def send_ad_request(session: aiohttp.ClientSession, url: str, json: dict) 
 def determine_winner(bids: list[dict]) -> dict:
     winner = max(bids, key=lambda b: b["bid_amount"])
     return winner
+
+def fetch_api_keys():
+    with aiohttp.ClientSession() as session:
+        async with session.get(url=urljoin(ADX_URL, "/fetch_api_keys")) as response:
+            if response.status != 200:
+                response_text = await response.text()
+                logger.info(
+                    f"Fetching keys did not return 200. Got status: {response.status}\n"
+                    f"Response body:\n{response_text}"
+                )
+            else:
+                response_json = await response.json()
+                logger.debug(f"Got keys:\n{response_json}")
+                return response_json
 
 
