@@ -14,6 +14,7 @@ from shared.pydantic_models import (
     AdRequestSSP,
     AdResponseADX,
     AdResponseSSP,
+    AuctionSSP # will be replaced with sqlalchemy schema
 )
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,8 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
+
+ADX_URL = os.getenv("ADX_URL", "http://localhost:8001")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,34 +36,39 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-ADX_URL = os.getenv("ADX_URL", "http://localhost:8001")
 
 @app.post("/ad_request")
 async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
+    # get session
     session = request.app.state.ad_request_session
-    payload_dict = payload.model_dump()
-    logger.debug(f"Raw payload dict:\n{payload_dict}")
+    # cast pydantic model into dict
+    request_data = payload.model_dump()
+    logger.debug(f"Raw payload dict:\n{request_data}")
+    # generate auction id
     auction_id = str(uuid4())[:8]
-    db_insert = {
-        "auction_id_ssp": auction_id,
-        "publisher_id": payload_dict.pop("publisher_id"),
-    }
-    json_user_info = {**payload_dict, "auction_id_ssp": auction_id}
+    # db_insert is a placeholder for later insert.
+    # With next two lines we swap publisher_id in request_data  with current auction id 
+    # while saving publisher id for later insert.
+    db_insert = {"publisher_id": request_data.pop("publisher_id")}
+    request_data["auction_id_ssp"] = auction_id
 
     try:
-        AdRequestSSP.model_validate(json_user_info)
+        AdRequestSSP.model_validate(request_data)
     except ValidationError as e:
         logger.error(str(e))
         return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    logger.debug(f"json_user_info:\n{json_user_info}")
-
+    logger.debug(f"request_data:\n{request_data}")
+    # a crutch for adx endpoints 
+    # TODO make it pretty
     adx_urls = [urljoin(ADX_URL, f"/adx_{adx_id}_ad_request") for adx_id in range(3)]
+    # gather ads. These are pydantic models waiting to be unpacked
     tasks = [
-        send_ad_request(session=session, url=adx_url, json=json_user_info)
+        send_ad_request(session=session, url=adx_url, json=request_data)
         for adx_url in adx_urls
     ]
     responses = await asyncio.gather(*tasks)
+    # collect bids. These are pydantic models unpacked into list of dicts
     bids = [response.model_dump() for response in responses if response is not None]
     if not bids:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -68,12 +76,15 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     # This is overkill for a single line but I brought it out in case of complex
     # winner determination algo
     winner = determine_winner(bids)
+    ad_response= {
+            **{key: winner[key] for key in winner.keys() if key in list(AdResponseSSP.model_fields)},
+            "auction_id_ssp": auction_id
+    }
+    db_insert= {
+            **{key: winner[key] for key in winner.keys() if key in list(AuctionSSP.model_fields)},
+            "auction_id_ssp": auction_id
+    }
     logger.debug(f"Winner:\n{winner}")
-    ad_response = {**winner, "auction_id_ssp": auction_id}
-    db_insert["auction_id_adx"] = ad_response.pop("auction_id_adx")
-    db_insert["win_adx_id"] = ad_response.pop("adx_id")
-    db_insert["win_bid"] = ad_response.pop("bid_amount")
-    db_insert["caegories"] = ad_response.pop("categories")
     logger.debug(f"ad_response:\n{ad_response}")
     logger.debug(f"db_insert:\n{db_insert}")
     try:
