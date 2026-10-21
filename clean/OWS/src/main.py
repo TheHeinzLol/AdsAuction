@@ -4,14 +4,17 @@ import os
 import signal
 import sys
 
-from .generator_request import worker_workload
 from .metrics_server import start_metrics_server
 from .user_pool import populate_user_pool
 from .worker_render import worker_render
+from .worker_workload import worker_workload
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
-logging.getLogger("OWS.src.generate_request").setLevel(logging.INFO)
+logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s [%(funcName)s]:\n%(message)s",
+)
+logging.getLogger("OWS.src.generator_request").setLevel(logging.WARNING)
 logging.getLogger("OWS.src.worker_render").setLevel(logging.WARNING)
 logging.getLogger("OWS.src.delayed_queue").setLevel(logging.WARNING)
 

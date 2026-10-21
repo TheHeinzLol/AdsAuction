@@ -35,3 +35,11 @@ class AdResponseADX(AdResponseSSP):
     auction_id_adx: str
     bid_amount: float
     categories: list[str]
+
+class AuctionSSP(BaseModel):
+    auction_id_ssp: str
+    win_adx_id: str
+    auction_id_adx: str
+    win_bid: float
+    publisher_id: str
+    categories: list[str]

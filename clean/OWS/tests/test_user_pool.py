@@ -4,7 +4,6 @@ Checks methods for user and pool consistency under operations.
 """
 
 import pytest
-
 from OWS.src.user_pool import User, _user_pool, populate_user_pool, user_exhaust_check
 
 
