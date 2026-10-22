@@ -1,12 +1,13 @@
 import logging
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from pydantic import ValidationError
-from random import choice, choices, randint, random, uniform
 import secrets
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from random import choice, choices, randint, random, uniform
 from uuid import uuid4
 
 from fastapi import Body, FastAPI, Header, HTTPException, Request, Response, status
+from pydantic import ValidationError
+
 from shared.pydantic_models import AdResponseADX
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ async def lifespan(app: FastAPI):
             app.add_api_route(
                 path=f"/adx_{adx_id}_ad_request",
                 endpoint=adx_ad_request,
-                response_model=AdResponse,
+                response_model=AdResponseADX,
                 methods=["POST"],
             )
             app.add_api_route(
@@ -44,9 +45,9 @@ async def lifespan(app: FastAPI):
     for i in range(num_adx_endpoints):
         valid_api_keys[secrets.token_urlsafe(16)] = {
             "adx_id": str(i),
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(UTC).isoformat(),
         }
-    logger.info("Valid API keys:", "\n".join([key for key in valid_api_keys]))
+    logger.info(f"Valid API keys:{'\n'.join([key for key in valid_api_keys])}")
     yield
 
 
@@ -57,9 +58,11 @@ app = FastAPI(title="ADX mock", lifespan=lifespan)
 async def get_root():
     return {"ass": "twat"}
 
+
 @app.get("/fetch_api_keys")
 async def give_api_keys():
     return valid_api_keys
+
 
 @app.get("/healthz")
 async def helth_check():
@@ -69,16 +72,20 @@ async def helth_check():
 # ===== Helper functions =====
 
 
-async def adx_ad_request(request: Request, payload: dict=Body(), x_api_key: str=Header()):
+async def adx_ad_request(
+    request: Request, payload: dict = Body, x_api_key: str = Header
+):
     if random() < 0.1:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    
+
     if x_api_key not in valid_api_keys:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    
-    adx_id = "_".join(request.url.path.split("/")[-1].split("_")[:2]) # returns 'adx_i' where i is id
-    
-    if valid_keys[x_api_key]["adx_id"] != adx_id[-1]:
+
+    adx_id = "_".join(
+        request.url.path.split("/")[-1].split("_")[:2]
+    )  # returns 'adx_i' where i is id
+
+    if valid_api_keys[x_api_key]["adx_id"] != adx_id[-1]:
         raise HTTPException(status_code=403, detail="API key doesn't match this adx")
 
     auction_id_ssp = payload["auction_id_ssp"]
@@ -100,18 +107,18 @@ async def adx_ad_request(request: Request, payload: dict=Body(), x_api_key: str=
     if random() < 0.1:
         categories.append(choice(categories_bad))
     logger.debug(f"auction_id_ssp:\n{auction_id_ssp}")
-    ad_response =  {
-            "adx_id": adx_id,
-            "auction_id_adx": str(uuid4())[:8],
-            "auction_id_ssp": auction_id_ssp,
-            "bid_amount": round(uniform(0, 6), 2),
-            "ad_url": f"{adx_id} mock ad url",
-            "categories": categories,
-            "ttl": choice([5, 10, 15]),
-        }
+    ad_response = {
+        "adx_id": adx_id,
+        "auction_id_adx": str(uuid4())[:8],
+        "auction_id_ssp": auction_id_ssp,
+        "bid_amount": round(uniform(0, 6), 2),
+        "ad_url": f"{adx_id} mock ad url",
+        "categories": categories,
+        "ttl": choice([5, 10, 15]),
+    }
     try:
         AdResponseADX.model_validate(ad_response)
-        return AdResponse(**ad_response)
+        return AdResponseADX(**ad_response)
     except ValidationError as e:
         logger.error(str(e))
 

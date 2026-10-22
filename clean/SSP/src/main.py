@@ -14,7 +14,7 @@ from shared.pydantic_models import (
     AdRequestSSP,
     AdResponseADX,
     AdResponseSSP,
-    AuctionSSP # will be replaced with sqlalchemy schema
+    AuctionSSP,  # will be replaced with sqlalchemy schema
 )
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ logging.basicConfig(
 
 ADX_URL = os.getenv("ADX_URL", "http://localhost:8001")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # access_logger = logging.getLogger("uvicorn.access")
@@ -32,12 +33,13 @@ async def lifespan(app: FastAPI):
     app.state.ad_request_session = aiohttp.ClientSession()
     # app.state.render_session = aiohttp.ClientSession()
     # Get api keys
-    app.state.api_keys = fetch_api_keys()
+    app.state.api_keys = await fetch_api_keys()
 
     yield
 
 
 app = FastAPI(lifespan=lifespan)
+
 
 @app.post("/ad_request")
 async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
@@ -49,7 +51,7 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     # generate auction id
     auction_id = str(uuid4())[:8]
     # db_insert is a placeholder for later insert.
-    # With next two lines we swap publisher_id in request_data  with current auction id 
+    # With next two lines we swap publisher_id in request_data  with current auction id
     # while saving publisher id for later insert.
     db_insert = {"publisher_id": request_data.pop("publisher_id")}
     request_data["auction_id_ssp"] = auction_id
@@ -61,12 +63,17 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
         return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     logger.debug(f"request_data:\n{request_data}")
-    # a crutch for adx endpoints 
+    # a crutch for adx endpoints
     # TODO make it pretty
     adx_urls = [urljoin(ADX_URL, f"/adx_{adx_id}_ad_request") for adx_id in range(3)]
     # gather ads. These are pydantic models waiting to be unpacked
     tasks = [
-        send_ad_request(session=session, url=adx_url, json=request_data)
+        send_ad_request(
+            session=session,
+            url=adx_url,
+            json=request_data,
+            api_key=get_api_key(request=request, adx_url=adx_url),
+        )
         for adx_url in adx_urls
     ]
     responses = await asyncio.gather(*tasks)
@@ -78,13 +85,17 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     # This is overkill for a single line but I brought it out in case of complex
     # winner determination algo
     winner = determine_winner(bids)
-    ad_response= {
-            **{key: winner[key] for key in winner.keys() if key in list(AdResponseSSP.model_fields)},
-            "auction_id_ssp": auction_id
+    ad_response = {
+        **{
+            key: winner[key]
+            for key in winner
+            if key in list(AdResponseSSP.model_fields)
+        },
+        "auction_id_ssp": auction_id,
     }
-    db_insert= {
-            **{key: winner[key] for key in winner.keys() if key in list(AuctionSSP.model_fields)},
-            "auction_id_ssp": auction_id
+    db_insert = {
+        **{key: winner[key] for key in winner if key in list(AuctionSSP.model_fields)},
+        "auction_id_ssp": auction_id,
     }
     logger.debug(f"Winner:\n{winner}")
     logger.debug(f"ad_response:\n{ad_response}")
@@ -101,15 +112,23 @@ async def confirm_render() -> dict:
 
     return {"render": "accepted"}
 
+
 @app.get("/healthz")
 async def healthz():
     return {"status": "healthy"}
 
 
 # ===== HELPERS =====
-async def send_ad_request(session: aiohttp.ClientSession, url: str, json: dict) -> AdResponseADX:
+async def send_ad_request(
+    session: aiohttp.ClientSession,
+    url: str,
+    json: dict,
+    api_key: str,
+) -> AdResponseADX:
     logger.debug(f"Sending request to {url}")
-    async with session.post(url=url, json=json) as response:
+    async with session.post(
+        url=url, headers={"X-API-KEY": api_key}, json=json
+    ) as response:
         if response.status != 200:
             response_text = await response.text()
             logger.info(
@@ -130,8 +149,9 @@ def determine_winner(bids: list[dict]) -> dict:
     winner = max(bids, key=lambda b: b["bid_amount"])
     return winner
 
-def fetch_api_keys():
-    with aiohttp.ClientSession() as session:
+
+async def fetch_api_keys():
+    async with aiohttp.ClientSession() as session:  # noqa: SIM117
         async with session.get(url=urljoin(ADX_URL, "/fetch_api_keys")) as response:
             if response.status != 200:
                 response_text = await response.text()
@@ -145,3 +165,11 @@ def fetch_api_keys():
                 return response_json
 
 
+def get_api_key(request: Request, adx_url: str):
+    api_keys = request.app.state.api_keys
+    adx_id = adx_url.split("/")[-1].split("_")[1]
+    result = "my_spare_key"
+    for key, key_data in api_keys.items():
+        if key_data["adx_id"] == adx_id:
+            result = key
+    return result

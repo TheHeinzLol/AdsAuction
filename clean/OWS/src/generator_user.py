@@ -12,6 +12,7 @@ logging.basicConfig(
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
 
+
 class UserProfile(BaseModel):
     user_id: str
     device: str

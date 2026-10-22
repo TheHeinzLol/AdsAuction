@@ -1,6 +1,7 @@
 import time
 
 import pytest
+
 from OWS.src.delayed_queue import _delayed_queue as queue
 from OWS.src.delayed_queue import peek, pop, schedule, size
 

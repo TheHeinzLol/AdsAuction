@@ -1,8 +1,8 @@
-
 from unittest.mock import MagicMock, patch
 
 import aiohttp
 from aioresponses import aioresponses
+
 from OWS.src.generator_request import make_ad_request
 from OWS.src.user_pool import populate_user_pool
 
@@ -21,8 +21,8 @@ async def test_make_ad_request_returns_parsed_json_on_200():
     """On 200, returns parsed JSON body."""
     populate_user_pool(1)
     with (
-            aioresponses() as mocked,
-            patch("OWS.src.generator_request.schedule", return_value=MagicMock()),
+        aioresponses() as mocked,
+        patch("OWS.src.generator_request.schedule", return_value=MagicMock()),
     ):
         mocked.post(mock_url, status=200, payload=ad_response)
         async with aiohttp.ClientSession() as session:

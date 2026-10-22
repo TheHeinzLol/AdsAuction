@@ -71,4 +71,3 @@ async def generate_request_batch(
 if __name__ == "__main__":
     num_requests = int(sys.argv[1])
     asyncio.run(worker_workload(num_requests))
-    

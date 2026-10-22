@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import aiohttp
 from aioresponses import aioresponses
+
 from OWS.src.worker_workload import (
     generate_request_batch,
     generate_workload,
@@ -17,10 +18,10 @@ mock_url = "http://localhost:8000"
 async def test_generate_request_batch_returns_n_responses():
     """Returns exactly num_requests responses."""
     num_requests = 5
-    #start edit
+    # start edit
     with (
-            aioresponses() as mocked,
-            patch("OWS.src.worker_workload.make_ad_request", return_value="placeholder")
+        aioresponses() as mocked,
+        patch("OWS.src.worker_workload.make_ad_request", return_value="placeholder"),
     ):
         for _ in range(num_requests):
             mocked.post(
@@ -38,8 +39,8 @@ async def test_generate_request_batch_returns_n_responses():
 async def test_generate_request_batch_handles_mixed_responses():
     """Handles responses other than 200 without raising an error."""
     with (
-            aioresponses() as mocked,
-            patch("OWS.src.worker_workload.make_ad_request", return_value="placeholder")
+        aioresponses() as mocked,
+        patch("OWS.src.worker_workload.make_ad_request", return_value="placeholder"),
     ):
         mocked.post(
             mock_url,

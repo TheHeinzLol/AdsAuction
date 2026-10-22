@@ -8,6 +8,7 @@ logging.basicConfig(
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
 
+
 def start_metrics_server(port: int = 8041) -> None:
     server, thread = start_http_server(port)
     logger.info(

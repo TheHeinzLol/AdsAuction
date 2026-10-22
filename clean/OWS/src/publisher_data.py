@@ -5,7 +5,11 @@ PUBLISHERS = [
     {"publisher_id": "pub_bleacher", "category": "sports", "floor_price": 1.20},
     {"publisher_id": "pub_f1_official", "category": "sports", "floor_price": 3.00},
     # Automotive
-    {"publisher_id": "pub_car", "category": "automotive", "floor_price": 2.00,},
+    {
+        "publisher_id": "pub_car",
+        "category": "automotive",
+        "floor_price": 2.00,
+    },
     {"publisher_id": "pub_motortrend", "category": "automotive", "floor_price": 1.80},
     # Technology
     {"publisher_id": "pub_techcrunch", "category": "technology", "floor_price": 2.00},

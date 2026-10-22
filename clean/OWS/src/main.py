@@ -11,8 +11,8 @@ from .worker_workload import worker_workload
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
-        level=logging.INFO,
-        format="%(levelname)s [%(funcName)s]:\n%(message)s",
+    level=logging.INFO,
+    format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
 logging.getLogger("OWS.src.generator_request").setLevel(logging.WARNING)
 logging.getLogger("OWS.src.worker_render").setLevel(logging.WARNING)

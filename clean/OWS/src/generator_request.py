@@ -1,11 +1,10 @@
-
-
 import logging
 from random import choice, random
 from time import perf_counter
 
 import aiohttp
 from pydantic import ValidationError
+
 from shared.pydantic_models import AdRequestOWS
 
 from .delayed_queue import schedule
@@ -20,6 +19,7 @@ logging.basicConfig(
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
 
+
 async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
     before_request = perf_counter()
     user, request_data = generate_request_data()
@@ -27,7 +27,9 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
     timeout_seconds = 0.1
     try:
         async with session.post(
-            url=url, json=request_data, timeout=aiohttp.ClientTimeout(total=timeout_seconds)
+            url=url,
+            json=request_data,
+            timeout=aiohttp.ClientTimeout(total=timeout_seconds),
         ) as response:
             response_time = (perf_counter() - before_request) * 1000  # ms instead of s
             if response.status != 200:
@@ -89,4 +91,3 @@ def generate_request_data() -> tuple[User, AdRequestOWS]:
         return user, AdRequestOWS(**request_data)
     except ValidationError as e:
         logger.error(str(e))
-
