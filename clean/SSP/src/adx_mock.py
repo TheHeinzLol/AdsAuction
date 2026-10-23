@@ -1,4 +1,5 @@
 import logging
+import os
 import secrets
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -18,8 +19,7 @@ logging.basicConfig(
 
 num_adx_endpoints = 3
 valid_api_keys = {}
-spare_api_key = "spare_key69"
-
+test_api_key = os.getenv("TEST_API_KEY", "test_api_key")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -78,15 +78,15 @@ async def adx_ad_request(
     if random() < 0.1:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-    if x_api_key not in valid_api_keys:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    if x_api_key != test_api_key:
 
-    adx_id = "_".join(
-        request.url.path.split("/")[-1].split("_")[:2]
-    )  # returns 'adx_i' where i is id
+        if x_api_key not in valid_api_keys:
+            raise HTTPException(status_code=401, detail="Invalid API key")
 
-    if valid_api_keys[x_api_key]["adx_id"] != adx_id[-1]:
-        raise HTTPException(status_code=403, detail="API key doesn't match this adx")
+        if valid_api_keys[x_api_key]["adx_id"] != adx_id[-1]:
+            raise HTTPException(status_code=403, detail="API key doesn't match this adx")
+
+    adx_id = "_".join(request.url.path.split("/")[-1].split("_")[:2])  # returns 'adx_i' where i is id
 
     auction_id_ssp = payload["auction_id_ssp"]
     categories_good = [

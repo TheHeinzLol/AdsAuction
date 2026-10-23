@@ -3,34 +3,39 @@ from unittest.mock import MagicMock, patch
 import aiohttp
 from aioresponses import aioresponses
 
-from OWS.src.generator_request import make_ad_request
-from OWS.src.user_pool import populate_user_pool
+from shared.pydantic_models import AdResponseADX, AdResponseSSP, AdRequestOWS
+from OWS.src.generator_request import generate_request_data, make_ad_request
+from OWS.src.user_pool import populate_user_pool, User, _user_pool as user_pool
 
 mock_url = "http://localhost:8000"
 
-ad_response = {
-    "auction_id_ssp": "852cda8",
-    "ad_url": "mock ad url",
-    "ttl": 5,
-}
+
+# ===== generate_request_data =====
+
+def test_generate_request_data_return_on_debug_false():
+    user, request_data = generate_request_data()
+    assert isinstance(user, User)
+    assert isinstance(request_data, AdRequestOWS)
+
+def test_generate_request_data_return_on_debug_false():
+    request_data = generate_request_data(debug_mode=True)
+    assert isinstance(request_data, AdRequestOWS)
 
 # ===== make_ad_request =====
 
 
-async def test_make_ad_request_returns_parsed_json_on_200():
+async def test_make_ad_request_returns_parsed_json_on_200(ad_response_ssp):
     """On 200, returns parsed JSON body."""
     populate_user_pool(1)
     with (
         aioresponses() as mocked,
         patch("OWS.src.generator_request.schedule", return_value=MagicMock()),
     ):
-        mocked.post(mock_url, status=200, payload=ad_response)
+        mocked.post(mock_url, status=200, payload=ad_response_ssp.model_dump())
         async with aiohttp.ClientSession() as session:
             result = await make_ad_request(session=session, url=mock_url)
-    assert result["ad_url"] == "mock ad url", f"Result: {result}"
-    assert result["auction_id_ssp"] == "852cda8"
-    assert isinstance(result["ttl"], int)
-
+    AdResponseSSP.model_validate(result)
+    assert isinstance(result, dict)
 
 async def test_make_ad_request_returns_text_on_non_200():
     """On non-200, still returns parsed JSON body."""

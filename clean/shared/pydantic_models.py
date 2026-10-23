@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict
-
+from random import choice
+from uuid import uuid4
 
 class AdRequestCommon(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -9,7 +10,7 @@ class AdRequestCommon(BaseModel):
     floor_price: float  # temp until publisher policy is implemented
     device: str
     channel: str
-    ad_size: list[int, int] | None
+    ad_size: tuple[int, int] | None
     region: str
     languages: list[str]
     local_hour: int

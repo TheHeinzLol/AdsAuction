@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 
 import aiohttp
 
-from .delayed_queue import peek, pop
+from .delayed_queue import peek, _delayed_queue as queue
 from .metrics import RENDERS_CONFIRMED
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ async def render_ad(session: aiohttp.ClientSession, stop: asyncio.Event):
         now = time.time()
         if send_at <= now:
             logger.debug(f"sending item {item}")
-            pop()
+            queue.remove(item)
             try:
                 await send_render_confirmation(
                     session=session, url=render_url, auction_id=auction_id

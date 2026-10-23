@@ -20,13 +20,6 @@ def peek() -> tuple[float, str] | None:
     return _delayed_queue[0]
 
 
-def pop() -> tuple[float, str] | None:
-    """Remove and return next item."""
-    if not _delayed_queue:
-        return None
-    return heapq.heappop(_delayed_queue)
-
-
 def size() -> int:
     """Return current queue size."""
     return len(_delayed_queue)

@@ -11,7 +11,7 @@ from .delayed_queue import schedule
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT, RENDERS_SKIPPED
 from .publisher_data import PUBLISHERS
 from .user_pool import User, user_exhaust_check
-from .user_pool import _user_pool as user_pool
+from .user_pool import _user_pool as user_pool, populate_user_pool
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -69,7 +69,9 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
         return {"error": str(e), "error_type": type(e).__name__}
 
 
-def generate_request_data() -> tuple[User, AdRequestOWS]:
+def generate_request_data(debug_mode: bool=False) -> tuple[User, AdRequestOWS]:
+    if debug_mode:
+        populate_user_pool(1)
     # get user from user_pool
     user = choice(user_pool)
     # decide if publisher will match user's preference or will be chosen randomly
@@ -88,6 +90,10 @@ def generate_request_data() -> tuple[User, AdRequestOWS]:
     # return user
     try:
         AdRequestOWS.model_validate(request_data)
-        return user, AdRequestOWS(**request_data)
+        if debug_mode:
+            user_pool.clear()
+            return AdRequestOWS(**request_data)
+        else:
+            return user, AdRequestOWS(**request_data)
     except ValidationError as e:
         logger.error(str(e))

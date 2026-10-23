@@ -3,7 +3,7 @@ import time
 import pytest
 
 from OWS.src.delayed_queue import _delayed_queue as queue
-from OWS.src.delayed_queue import peek, pop, schedule, size
+from OWS.src.delayed_queue import peek, schedule, size
 
 
 @pytest.fixture(autouse=True)
@@ -73,37 +73,6 @@ def test_peek_returns_same_item_on_repeated_calls():
     first = peek()
     second = peek()
     assert first == second
-
-
-# ===== pop =====
-
-
-def test_pop_returns_none_on_empty_queue():
-    assert pop() is None
-
-
-def test_pop_deletes_item_from_queue():
-    schedule(auction_id="foo", ttl=1)
-    schedule(auction_id="bar", ttl=10)
-    pop()
-    assert len(queue) == 1
-
-
-def test_pop_returns_returns_earliest_item():
-    schedule(auction_id="later", ttl=10)
-    schedule(auction_id="sooner", ttl=1)
-    item = pop()
-    assert item[1] == "sooner"
-
-
-def test_pop_returns_items_in_order():
-    schedule(auction_id="c", ttl=10)
-    schedule(auction_id="a", ttl=1)
-    schedule(auction_id="b", ttl=5)
-
-    assert pop()[1] == "a"
-    assert pop()[1] == "b"
-    assert pop()[1] == "c"
 
 
 # ===== size =====

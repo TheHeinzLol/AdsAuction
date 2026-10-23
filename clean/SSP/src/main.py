@@ -125,6 +125,11 @@ async def send_ad_request(
     json: dict,
     api_key: str,
 ) -> AdResponseADX:
+
+    if api_key == "NO KEY":
+        logger.warning(f"Cancelling ad request for {url}: No API key")
+        return
+
     logger.debug(f"Sending request to {url}")
     async with session.post(
         url=url, headers={"X-API-KEY": api_key}, json=json
@@ -168,8 +173,8 @@ async def fetch_api_keys():
 def get_api_key(request: Request, adx_url: str):
     api_keys = request.app.state.api_keys
     adx_id = adx_url.split("/")[-1].split("_")[1]
-    result = "my_spare_key"
     for key, key_data in api_keys.items():
         if key_data["adx_id"] == adx_id:
-            result = key
-    return result
+            return key
+    logger.warning(f"Found no API key for {adx_id}")
+    return "NO KEY"
