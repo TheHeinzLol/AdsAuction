@@ -10,8 +10,8 @@ from shared.pydantic_models import AdRequestOWS
 from .delayed_queue import schedule
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT, RENDERS_SKIPPED
 from .publisher_data import PUBLISHERS
-from .user_pool import User, user_exhaust_check
-from .user_pool import _user_pool as user_pool, populate_user_pool
+from .user_pool import User, populate_user_pool, user_exhaust_check
+from .user_pool import _user_pool as user_pool
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -69,7 +69,7 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
         return {"error": str(e), "error_type": type(e).__name__}
 
 
-def generate_request_data(debug_mode: bool=False) -> tuple[User, AdRequestOWS]:
+def generate_request_data(debug_mode: bool = False) -> tuple[User, AdRequestOWS]:
     if debug_mode:
         populate_user_pool(1)
     # get user from user_pool

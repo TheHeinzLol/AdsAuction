@@ -6,10 +6,10 @@ from datetime import UTC, datetime
 from random import choice, choices, randint, random, uniform
 from uuid import uuid4
 
-from fastapi import Body, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi import FastAPI, Header, HTTPException, Request, Response, status
 from pydantic import ValidationError
 
-from shared.pydantic_models import AdResponseADX, AdRequestSSP
+from shared.pydantic_models import AdRequestSSP, AdResponseADX
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -20,6 +20,7 @@ logging.basicConfig(
 num_adx_endpoints = 3
 valid_api_keys = {}
 test_api_key = os.getenv("TEST_API_KEY", "test_api_key")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -68,6 +69,7 @@ async def give_api_keys():
 async def helth_check():
     return {"status": "healthy"}
 
+
 @app.get("/update_keys")
 async def update_keys():
     valid_api_keys.clear()
@@ -77,6 +79,7 @@ async def update_keys():
             "created_at": datetime.now(UTC).isoformat(),
         }
     return valid_api_keys
+
 
 # ===== Helper functions =====
 
@@ -88,14 +91,17 @@ async def adx_ad_request(
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     if x_api_key != test_api_key:
-
         if x_api_key not in valid_api_keys:
             raise HTTPException(status_code=401, detail="Invalid API key")
 
-        adx_id = "_".join(request.url.path.split("/")[-1].split("_")[:2])  # returns 'adx_i' where i is id
+        adx_id = "_".join(
+            request.url.path.split("/")[-1].split("_")[:2]
+        )  # returns 'adx_i' where i is id
 
         if valid_api_keys[x_api_key]["adx_id"] != adx_id[-1]:
-            raise HTTPException(status_code=403, detail="API key doesn't match this adx")
+            raise HTTPException(
+                status_code=403, detail="API key doesn't match this adx"
+            )
 
     payload = payload.model_dump()
     auction_id_ssp = payload["auction_id_ssp"]
@@ -134,8 +140,7 @@ async def adx_ad_request(
 
 
 async def adx_render_confirm(request: Request):
-    adx_id = "_".join(request.url.path.split("/")[-1].split("_")[:2])  # returns 'adx_i' where i is id
+    adx_id = "_".join(
+        request.url.path.split("/")[-1].split("_")[:2]
+    )  # returns 'adx_i' where i is id
     return {"adx_id": adx_id, "render_status": "confirmed"}
-
-
-

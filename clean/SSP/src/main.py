@@ -55,13 +55,6 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     # while saving publisher id for later insert.
     db_insert = {"publisher_id": request_data.pop("publisher_id")}
     request_data["auction_id_ssp"] = auction_id
-
-    try:
-        AdRequestSSP.model_validate(request_data)
-    except ValidationError as e:
-        logger.error(e)
-        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
     logger.debug(f"request_data:\n{request_data}")
     # a crutch for adx endpoints
     # TODO make it pretty
@@ -71,50 +64,32 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
         send_ad_request(
             session=session,
             url=adx_url,
-            json=request_data,
+            json=AdRequestSSP(**request_data),
             api_key=get_api_key(request=request, adx_url=adx_url),
         )
         for adx_url in adx_urls
     ]
     responses = await asyncio.gather(*tasks)
-    #check if there were 401 or 403 and update keys
-    if any(isinstance(response, aiohttp.ClientResponse) for response in responses):
+    bids, need_update_keys = process_responses(responses)
+    logger.debug(f"bids:\n{bids}")
+    if need_update_keys:
         request.app.state.api_keys = await fetch_api_keys()
-    # collect bids. These are pydantic models unpacked into list of dicts
-    bids = []
-    for response in responses:
-        if isinstance(response, AdResponseADX):
-            bids.append(response)
-
     # no bids handling
     if not bids:
+        # TODO insert empty auction in db
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    logger.debug(f"bids:\n{bids}")
 
-    bids = [bid.model_dump() for bid in bids]
     # This is overkill for a single line but I brought it out in case of complex
-    # winner determination algo
     winner = determine_winner(bids)
-    ad_response = {
-        **{
-            key: winner[key]
-            for key in winner
-            if key in list(AdResponseSSP.model_fields)
-        },
-        "auction_id_ssp": auction_id,
-    }
-    db_insert = {
-        **{key: winner[key] for key in winner if key in list(AuctionSSP.model_fields)},
-        "auction_id_ssp": auction_id,
-    }
     logger.debug(f"Winner:\n{winner}")
+    ad_response = AdResponseSSP.model_validate(winner, extra="ignore")
     logger.debug(f"ad_response:\n{ad_response}")
+    db_insert = AuctionSSP.model_validate(
+        {**winner, "publisher_id": db_insert["publisher_id"]}, extra="ignore"
+    )
     logger.debug(f"db_insert:\n{db_insert}")
-    try:
-        AdResponseSSP.model_validate(ad_response)
-        return AdResponseSSP(**ad_response)
-    except ValidationError as e:
-        logger.error(str(e))
+
+    return ad_response
 
 
 @app.post("/confirm_render")
@@ -127,16 +102,18 @@ async def confirm_render() -> dict:
 async def healthz():
     return {"status": "healthy"}
 
+
 @app.get("/refresh_keys")
 async def refresh_keys(request: Request):
     request.app.state.api_keys = await fetch_api_keys()
     return app.state.api_keys
 
+
 # ===== HELPERS =====
 async def send_ad_request(
     session: aiohttp.ClientSession,
     url: str,
-    json: dict,
+    json: AdRequestSSP,
     api_key: str,
 ) -> AdResponseADX:
 
@@ -146,7 +123,7 @@ async def send_ad_request(
 
     logger.debug(f"Sending request to {url}")
     async with session.post(
-        url=url, headers={"X-API-KEY": api_key}, json=json
+        url=url, headers={"X-API-KEY": api_key}, json=json.model_dump()
     ) as response:
         if response.status != 200:
             response_text = await response.text()
@@ -194,3 +171,21 @@ def get_api_key(request: Request, adx_url: str):
             return key
     logger.warning(f"Found no API key for {adx_id}")
     return "NO KEY"
+
+
+def process_responses(
+    responses: list[aiohttp.ClientResponse | AdResponseADX],
+) -> tuple[list[dict], bool]:
+
+    bids = []
+    need_key_update = False
+
+    for response in responses:
+        if isinstance(response, aiohttp.ClientResponse):
+            need_key_update = True
+            continue
+        elif response is not None:
+            bids.append(response.model_dump())
+        else:
+            continue
+    return bids, need_key_update

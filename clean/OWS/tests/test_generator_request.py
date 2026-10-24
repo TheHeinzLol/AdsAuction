@@ -3,23 +3,26 @@ from unittest.mock import MagicMock, patch
 import aiohttp
 from aioresponses import aioresponses
 
-from shared.pydantic_models import AdResponseADX, AdResponseSSP, AdRequestOWS
 from OWS.src.generator_request import generate_request_data, make_ad_request
-from OWS.src.user_pool import populate_user_pool, User, _user_pool as user_pool
+from OWS.src.user_pool import User, populate_user_pool
+from shared.pydantic_models import AdRequestOWS, AdResponseSSP
 
 mock_url = "http://localhost:8000"
 
 
 # ===== generate_request_data =====
 
+
 def test_generate_request_data_return_on_debug_false():
     user, request_data = generate_request_data()
     assert isinstance(user, User)
     assert isinstance(request_data, AdRequestOWS)
 
-def test_generate_request_data_return_on_debug_false():
+
+def test_generate_request_data_return_on_debug_true():
     request_data = generate_request_data(debug_mode=True)
     assert isinstance(request_data, AdRequestOWS)
+
 
 # ===== make_ad_request =====
 
@@ -36,6 +39,7 @@ async def test_make_ad_request_returns_parsed_json_on_200(ad_response_ssp):
             result = await make_ad_request(session=session, url=mock_url)
     AdResponseSSP.model_validate(result)
     assert isinstance(result, dict)
+
 
 async def test_make_ad_request_returns_text_on_non_200():
     """On non-200, still returns parsed JSON body."""
