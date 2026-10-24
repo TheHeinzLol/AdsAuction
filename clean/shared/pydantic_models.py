@@ -1,6 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from random import choice
-from uuid import uuid4
+
 
 class AdRequestCommon(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -41,8 +40,8 @@ class AdResponseADX(AdResponseSSP):
 
 class AuctionSSP(BaseModel):
     auction_id_ssp: str
-    win_adx_id: str
+    adx_id: str
     auction_id_adx: str
-    win_bid: float
+    bid_amount: float
     publisher_id: str
     categories: list[str]

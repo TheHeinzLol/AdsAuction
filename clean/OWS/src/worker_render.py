@@ -6,7 +6,8 @@ from urllib.parse import urljoin
 
 import aiohttp
 
-from .delayed_queue import peek, _delayed_queue as queue
+from .delayed_queue import _delayed_queue as queue
+from .delayed_queue import peek
 from .metrics import RENDERS_CONFIRMED
 
 logger = logging.getLogger(__name__)

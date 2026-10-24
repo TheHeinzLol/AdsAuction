@@ -2,13 +2,11 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import aiohttp
-from aioresponses import aioresponses
 
 from OWS.src.worker_workload import (
     generate_request_batch,
     generate_workload,
 )
-
 
 # ===== generate_request_batch =====
 
@@ -35,7 +33,7 @@ async def test_generate_request_batch_handles_empty_responses(base_url_ssp):
             responses = await generate_request_batch(
                 session=session, url=base_url_ssp, num_requests=2
             )
-    assert len(responses) == 0 
+    assert len(responses) == 0
 
 
 # ===== generate_workload =====
