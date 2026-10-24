@@ -14,7 +14,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
-logging.getLogger("OWS.src.generator_request").setLevel(logging.WARNING)
+logging.getLogger("OWS.src.generator_request").setLevel(logging.DEBUG)
 logging.getLogger("OWS.src.worker_render").setLevel(logging.WARNING)
 logging.getLogger("OWS.src.delayed_queue").setLevel(logging.WARNING)
 

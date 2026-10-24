@@ -23,7 +23,7 @@ logging.basicConfig(
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
 
-ADX_URL = os.getenv("ADX_URL", "http://localhost:8001")
+ADX_URL = os.getenv("ADX_URL", "http://localhost:8002")
 
 
 @asynccontextmanager
@@ -59,7 +59,7 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     try:
         AdRequestSSP.model_validate(request_data)
     except ValidationError as e:
-        logger.error(str(e))
+        logger.error(e)
         return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     logger.debug(f"request_data:\n{request_data}")
@@ -77,11 +77,21 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
         for adx_url in adx_urls
     ]
     responses = await asyncio.gather(*tasks)
+    #check if there were 401 or 403 and update keys
+    if any(isinstance(response, aiohttp.ClientResponse) for response in responses):
+        request.app.state.api_keys = await fetch_api_keys()
     # collect bids. These are pydantic models unpacked into list of dicts
-    bids = [response.model_dump() for response in responses if response is not None]
+    bids = []
+    for response in responses:
+        if isinstance(response, AdResponseADX):
+            bids.append(response)
+
+    # no bids handling
     if not bids:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     logger.debug(f"bids:\n{bids}")
+
+    bids = [bid.model_dump() for bid in bids]
     # This is overkill for a single line but I brought it out in case of complex
     # winner determination algo
     winner = determine_winner(bids)
@@ -117,6 +127,10 @@ async def confirm_render() -> dict:
 async def healthz():
     return {"status": "healthy"}
 
+@app.get("/refresh_keys")
+async def refresh_keys(request: Request):
+    request.app.state.api_keys = await fetch_api_keys()
+    return app.state.api_keys
 
 # ===== HELPERS =====
 async def send_ad_request(
@@ -140,6 +154,8 @@ async def send_ad_request(
                 f"Ad request did not return 200. Got status: {response.status}\n"
                 f"Response body:\n{response_text}"
             )
+            if response.status in [401, 403]:
+                return response
         else:
             response_json = await response.json()
             logger.debug(f"Response:\n{response_json}")
