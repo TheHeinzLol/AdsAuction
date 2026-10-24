@@ -17,7 +17,7 @@ logging.basicConfig(
 
 # Read from environment, fall back to localhost.
 # This allows me to edit the script without launching docker compose every time
-SSP_URL = os.getenv("SSP_URL", "http://localhost:8000")
+SSP_URL = os.getenv("SSP_URL", "http://localhost:8001")
 
 
 async def worker_workload(requests_per_second: int, stop: asyncio.Event):
