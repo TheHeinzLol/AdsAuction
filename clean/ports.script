@@ -7,6 +7,7 @@ set -euo pipefail
 
 # Default ports to try first
 PREFERRED_SSP=8001
+PREFERRED_ADX=8002
 PREFERRED_PROMETHEUS=9090
 PREFERRED_GRAFANA=3000
 
@@ -54,12 +55,14 @@ PY
 
 # ---------- Find ports ----------
 SSP_PORT=$(find_port "$PREFERRED_SSP")
+ADX_PORT=$(find_port "$PREFERRED_ADX"
 PROMETHEUS_PORT=$(find_port "$PREFERRED_PROMETHEUS")
 GRAFANA_PORT=$(find_port "$PREFERRED_GRAFANA")
 
 # ---------- Report ----------
 echo "Found vacant ports:"
 echo "  SSP_PORT        = $SSP_PORT"
+echo "  ADX_PORT        = $ADX_PORT"
 echo "  PROMETHEUS_PORT = $PROMETHEUS_PORT"
 echo "  GRAFANA_PORT    = $GRAFANA_PORT"
 
@@ -69,6 +72,7 @@ cat > "$ENV_FILE" <<EOF
 # Do not edit by hand unless you know what you're doing.
 
 SSP_PORT=$SSP_PORT
+ADX_PORT=$ADX_PORT
 PROMETHEUS_PORT=$PROMETHEUS_PORT
 GRAFANA_PORT=$GRAFANA_PORT
 EOF
