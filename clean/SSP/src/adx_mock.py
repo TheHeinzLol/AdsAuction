@@ -17,10 +17,9 @@ logging.basicConfig(
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
 
-num_adx_endpoints = 3
+num_adx_endpoints = os.getenv("NUMBER_OF_ADX", 3)
 valid_api_keys = {}
 test_api_key = os.getenv("TEST_API_KEY", "test_api_key")
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

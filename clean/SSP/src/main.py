@@ -82,12 +82,15 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     # This is overkill for a single line but I brought it out in case of complex
     winner = determine_winner(bids)
     logger.debug(f"Winner:\n{winner}")
+
     ad_response = AdResponseSSP.model_validate(winner, extra="ignore")
     logger.debug(f"ad_response:\n{ad_response}")
+
     db_insert = AuctionSSP.model_validate(
         {**winner, "publisher_id": db_insert["publisher_id"]}, extra="ignore"
     )
     logger.debug(f"db_insert:\n{db_insert}")
+    # TODO insert db_insertt into db
 
     return ad_response
 
