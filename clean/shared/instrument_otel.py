@@ -1,3 +1,4 @@
+import logging
 import socket
 from urllib.parse import urlparse
 from opentelemetry import trace
@@ -15,16 +16,15 @@ logging.basicConfig(
 )
 
 def init_tracing(service_name: str, alloy_endpoint: str="http://alloy_rtb:4317"):
-   """Initialize OpenTelemetry tracing."""
-
+    """Initialize OpenTelemetry tracing."""
     global _initialized
-    parsed_url = ulrparse(alloy_endpoint)
+    parsed_url = urlparse(alloy_endpoint)
     
     # pass if already initialized or can't reach alloy
     if _initialized:
         logger.info(f"OTel tracing is already initialized by {service_name} service.")
         return
-    elif not is_endpoint_reachable(parsed_url.host, parsed_url.port):
+    elif not is_endpoint_reachable(parsed_url.hostname, parsed_url.port):
         logger.info(f"Alloy endpoint is not reachable by {service_name}. Skipping tracing init.")
         return
 

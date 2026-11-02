@@ -9,6 +9,7 @@ import aiohttp
 from fastapi import FastAPI, Request, Response, status
 from pydantic import ValidationError
 
+from shared.instrument_otel import init_tracing
 from shared.pydantic_models import (
     AdRequestOWS,
     AdRequestSSP,
@@ -31,10 +32,11 @@ async def lifespan(app: FastAPI):
     # access_logger = logging.getLogger("uvicorn.access")
     # access_logger.disabled = True
     app.state.ad_request_session = aiohttp.ClientSession()
-    # app.state.render_session = aiohttp.ClientSession()
+    app.state.render_session = aiohttp.ClientSession()
     # Get api keys
     app.state.api_keys = await fetch_api_keys()
-
+    # init tracing
+    init_tracing(service_name="SSP")
     yield
 
 
@@ -96,9 +98,11 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
 
 
 @app.post("/confirm_render")
-async def confirm_render() -> dict:
-
-    return {"render": "accepted"}
+async def confirm_render(payload: dict, request: Request) -> dict:
+    session = request.app.state.ad_request_session
+    #search auction ID in redis or db
+    #pass render into corresponding adx
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/healthz")

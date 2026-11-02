@@ -142,4 +142,4 @@ async def adx_render_confirm(request: Request):
     adx_id = "_".join(
         request.url.path.split("/")[-1].split("_")[:2]
     )  # returns 'adx_i' where i is id
-    return {"adx_id": adx_id, "render_status": "confirmed"}
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

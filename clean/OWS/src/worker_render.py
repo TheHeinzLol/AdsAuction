@@ -55,7 +55,7 @@ async def send_render_confirmation(
         url=render_url, json={"auction_id": auction_id, "render_status": "rendered"}
     ) as response:
         response_body = await response.json()
-        if response.status != 200:
+        if response.status not in [200, 204]:
             logger.info(f"\nFailed to confirm rendering. Response:\n{response_body}")
         else:
             RENDERS_CONFIRMED.inc()

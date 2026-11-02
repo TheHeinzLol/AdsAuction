@@ -1,6 +1,13 @@
 
+aioresponses-ng
+httpx2
+prometheus-client
 pytest
 pytest-asyncio
-httpx2
+
 opentelemetry-distro
+opentelemetry-exporter-otlp
+opentelemetry-api 
+opentelemetry-sdk 
+opentelemetry-instrumentation-aiohttp-client 
 
