@@ -12,7 +12,7 @@ from .metrics import RENDERS_CONFIRMED
 
 logger = logging.getLogger(__name__)
 
-SSP_URL = os.getenv("SSP_URL", "http://localhost:8000")
+SSP_URL = os.getenv("SSP_URL", "http://localhost:8001")
 render_url = urljoin(SSP_URL, "/confirm_render")
 
 

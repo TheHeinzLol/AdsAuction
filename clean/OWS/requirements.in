@@ -1,4 +1,9 @@
 
 aiohttp
 prometheus-client
+opentelemetry-distro
+opentelemetry-exporter-otlp
+opentelemetry-api 
+opentelemetry-sdk 
+opentelemetry-instrumentation-aiohttp-client 
 

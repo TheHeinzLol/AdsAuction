@@ -1,0 +1,125 @@
+name: lgtm-test
+
+services:
+  fastapi_1:
+    container_name: lgtm_fapi_1
+    build: .
+    environment:
+      OTEL_SERVICE_NAME: fastapi-1
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_TRACES_EXPORTER: otlp
+    labels:
+      logging: "enabled"
+    command: ["opentelemetry-instrument", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8003:8000"
+    networks:
+      - monitoring
+
+  fastapi_2:
+    container_name: lgtm_fapi_2
+    build:
+      context: .
+      dockerfile: Dockerfile_2
+    environment:
+      OTEL_SERVICE_NAME: fastapi-2
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_TRACES_EXPORTER: otlp
+    labels:
+      logging: "enabled"
+    volumes:
+      - ./fapi_2.py:/app/main.py
+    command: ["opentelemetry-instrument", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8004:8000"
+    networks:
+      - monitoring
+
+  loki:
+    image: grafana/loki:latest
+    container_name: lgtm_loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    container_name: lgtm_prometheus
+    labels:
+      logging: "enabled"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-remote-write-receiver"
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  tempo:
+    image: grafana/tempo:main-9035640-2280-1
+    container_name: lgtm_tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:13.2.3-slim
+    container_name: lgtm_grafana
+    labels:
+      logging: "enabled"
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admina
+      - GF_LOG_LEVEL=warn
+    restart: unless-stopped
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+      - loki
+      - alloy
+
+  alloy:
+    image: grafana/alloy:v1.21.2
+    container_name: lgtm_alloy
+    ports:
+      - "12345:12345"
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - "run"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "--storage.path=/var/lib/alloy/data"
+      - "/etc/alloy/config.alloy"
+    networks:
+      - monitoring 
+    depends_on: 
+      - fastapi_1
+      - prometheus
+      - loki
+
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  tempo-data:
