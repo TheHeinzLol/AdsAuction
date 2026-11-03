@@ -1,7 +1,9 @@
+fastapi
+pydantic
+prometheus-client
 
 aioresponses-ng
 httpx2
-prometheus-client
 pytest
 pytest-asyncio
 

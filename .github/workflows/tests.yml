@@ -5,7 +5,7 @@ on:
     branches: [main, development]
 
 jobs:
-  test-ows:
+   test-ows:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,4 +26,26 @@ jobs:
       - name: Run tests
         working-directory: clean/OWS
         run: pytest -v
-  
+
+   test-ssp:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with: 
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r clean/SSP/requirements-dev.txt
+
+      - name: Run tests
+        working-directory: clean/SSP
+        run: pytest -v
+
