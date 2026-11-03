@@ -100,7 +100,7 @@ async def test_main_uses_env_var_for_ssp_url(monkeypatch):
     # re-import
     import importlib
 
-    import OWS.src.main as main
+    from OWS.src import main
 
     importlib.reload(main)
 
