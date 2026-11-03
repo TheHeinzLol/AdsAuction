@@ -91,3 +91,17 @@ async def test_main_runs_and_stops():
         event.wait = short_wait
         mock_event.return_value = event
         await main(1)
+
+
+async def test_main_uses_env_var_for_ssp_url(monkeypatch):
+    """worker_workload() builds ssp url from the SSP_URL env var."""
+    monkeypatch.setenv("SSP_URL", "http://test-ssp:9999")
+
+    # re-import
+    import importlib
+
+    import OWS.src.main as main
+
+    importlib.reload(main)
+
+    assert main.SSP_URL == "http://test-ssp:9999"

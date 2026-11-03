@@ -96,20 +96,3 @@ async def test_generate_workload_continues_after_slow_batch(base_url_ssp):
                 session=session, url=base_url_ssp, requests_per_second=10, stop=stop
             )
     assert mock_batch.call_count == 2
-
-
-# ===== worker_workload =====
-
-
-async def test_worker_workload_uses_env_var_for_ssp_url(monkeypatch):
-    """worker_workload() builds ssp url from the SSP_URL env var."""
-    monkeypatch.setenv("SSP_URL", "http://test-ssp:9999")
-
-    # re-import
-    import importlib
-
-    import OWS.src.worker_workload as ww
-
-    importlib.reload(ww)
-
-    assert ww.SSP_URL == "http://test-ssp:9999"

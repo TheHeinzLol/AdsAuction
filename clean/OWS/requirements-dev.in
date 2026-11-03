@@ -1,5 +1,7 @@
 
 prometheus-client
+pydantic
+
 pytest
 pytest-asyncio
 aioresponses-ng

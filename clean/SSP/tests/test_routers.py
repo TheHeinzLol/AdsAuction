@@ -93,7 +93,7 @@ async def test_send_ad_request_returns_correct_json_on_200(
             response = await send_ad_request(
                 session=session,
                 url=urljoin(base_url_adx, ad_request_handle),
-                json=ad_request_ssp.model_dump(),
+                json=ad_request_ssp,
                 api_key="api key",
             )
     assert AdResponseADX.model_validate(response.model_dump())
@@ -110,7 +110,7 @@ async def test_send_ad_request_returns_nothing_on_non_200(ad_request_ssp, base_u
             response = await send_ad_request(
                 session=session,
                 url=urljoin(base_url_adx, ad_request_handle),
-                json=ad_request_ssp.model_dump(),
+                json=ad_request_ssp,
                 api_key="api key",
             )
     assert response is None, response
@@ -129,7 +129,7 @@ async def test_send_ad_request_returns_nothing_on_validation_fail(
             response = await send_ad_request(
                 session=session,
                 url=urljoin(base_url_adx, ad_request_handle),
-                json=ad_request_ssp.model_dump(),
+                json=ad_request_ssp,
                 api_key="api key",
             )
     assert response is None, response

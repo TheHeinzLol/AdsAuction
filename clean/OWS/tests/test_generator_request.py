@@ -14,6 +14,7 @@ mock_url = "http://localhost:8000"
 
 
 def test_generate_request_data_return_on_debug_false():
+    populate_user_pool(1)
     user, request_data = generate_request_data()
     assert isinstance(user, User)
     assert isinstance(request_data, AdRequestOWS)

@@ -17,9 +17,10 @@ logging.basicConfig(
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
 
-num_adx_endpoints = os.getenv("NUMBER_OF_ADX", 3)
+num_adx_endpoints = os.getenv("NUMBER_OF_ADX", "3")
 valid_api_keys = {}
 test_api_key = os.getenv("TEST_API_KEY", "test_api_key")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -138,8 +139,5 @@ async def adx_ad_request(
         logger.error(str(e))
 
 
-async def adx_render_confirm(request: Request):
-    adx_id = "_".join(
-        request.url.path.split("/")[-1].split("_")[:2]
-    )  # returns 'adx_i' where i is id
+async def adx_render_confirm():
     return Response(status_code=status.HTTP_204_NO_CONTENT)

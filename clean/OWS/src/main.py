@@ -1,12 +1,12 @@
-
 import asyncio
 import logging
 import os
 import signal
 import sys
 
-from .metrics_server import start_metrics_server
 from shared.instrument_otel import init_tracing
+
+from .metrics_server import start_metrics_server
 from .user_pool import populate_user_pool
 from .worker_render import worker_render
 from .worker_workload import worker_workload
@@ -27,8 +27,13 @@ METRICS_PORT = int(os.getenv("METRICS_PORT", "8041"))
 # This allows me to edit the script without launching docker compose every time
 SSP_URL = os.getenv("SSP_URL", "http://localhost:8001")
 
-async def main(requests_per_second: int, metrics_server_port: int = METRICS_PORT, ssp_url: str = SSP_URL):
-    #OTel tracing
+
+async def main(
+    requests_per_second: int,
+    metrics_server_port: int = METRICS_PORT,
+    ssp_url: str = SSP_URL,
+):
+    # OTel tracing
     init_tracing(service_name="OWS")
     # starting a metrics server for prometheus to scrape
     prometheus_server, thread = start_metrics_server(metrics_server_port)
@@ -42,7 +47,9 @@ async def main(requests_per_second: int, metrics_server_port: int = METRICS_PORT
     # declare tasks
     tasks = [
         asyncio.create_task(
-            worker_workload(ssp_url, requests_per_second=requests_per_second, stop=stop),
+            worker_workload(
+                ssp_url, requests_per_second=requests_per_second, stop=stop
+            ),
             name="workload_task",
         ),
         asyncio.create_task(worker_render(stop), name="render_task"),

@@ -99,9 +99,9 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
 
 @app.post("/confirm_render")
 async def confirm_render(payload: dict, request: Request) -> dict:
-    session = request.app.state.ad_request_session
-    #search auction ID in redis or db
-    #pass render into corresponding adx
+    # session = request.app.state.ad_request_session
+    # search auction ID in redis or db
+    # pass render into corresponding adx
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

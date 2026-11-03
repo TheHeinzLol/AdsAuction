@@ -14,6 +14,7 @@ logging.basicConfig(
 app = FastAPI()
 ROLL_COUNTER = 0
 
+
 @app.post("/accept_roll")
 async def roll(payload: dict):
     global ROLL_COUNTER
@@ -22,15 +23,14 @@ async def roll(payload: dict):
         raise HTTPException(status_code=403, detail="Invalid API key 403")
     elif random() < 0.5:
         try:
-            raise Exception("SimulatedErrorAgainSimulatedErrorAgainSimulatedErrorAgainSimulatedErrorAgainSimulatedErrorAgainSimulatedErrorAgain")
+            raise Exception(
+                "SimulatedErrorAgainSimulatedErrorAgainSimulatedErrorAgainSimulatedErrorAgainSimulatedErrorAgainSimulatedErrorAgain"
+            )
         except Exception as e:
             logger.error(f"This is str(e):\n{str(e)}")
             logger.error(f"This is e:\n{e}")
-    if random() < .5:
-        asyncio.sleep(uniform(.25,1))
+    if random() < 0.5:
+        asyncio.sleep(uniform(0.25, 1))
     ROLL_COUNTER += 1
-    rolled = payload['rolled']
-    return {
-            "got roll": rolled,
-           "ass": "twat"
-           }
+    rolled = payload["rolled"]
+    return {"got roll": rolled, "ass": "twat"}

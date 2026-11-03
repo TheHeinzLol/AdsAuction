@@ -15,17 +15,20 @@ logging.basicConfig(
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
 
-def init_tracing(service_name: str, alloy_endpoint: str="http://alloy_rtb:4317"):
+
+def init_tracing(service_name: str, alloy_endpoint: str = "http://alloy_rtb:4317"):
     """Initialize OpenTelemetry tracing."""
     global _initialized
     parsed_url = urlparse(alloy_endpoint)
-    
+
     # pass if already initialized or can't reach alloy
     if _initialized:
         logger.info(f"OTel tracing is already initialized by {service_name} service.")
         return
     elif not is_endpoint_reachable(parsed_url.hostname, parsed_url.port):
-        logger.info(f"Alloy endpoint is not reachable by {service_name}. Skipping tracing init.")
+        logger.info(
+            f"Alloy endpoint is not reachable by {service_name}. Skipping tracing init."
+        )
         return
 
     # 1. Set up the tracer provider
@@ -38,7 +41,7 @@ def init_tracing(service_name: str, alloy_endpoint: str="http://alloy_rtb:4317")
 
     # 3. Instrument aiohttp
     AioHttpClientInstrumentor().instrument()
-    
+
     _initialized = True
     logger.info(f"OTel tracing is initialized by {service_name} service.")
     return
@@ -51,4 +54,3 @@ def is_endpoint_reachable(host: str, port: int, timeout: float = 2.0) -> bool:
             return True
     except (socket.timeout, ConnectionRefusedError, OSError):
         return False
-

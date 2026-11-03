@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import sys
 from time import perf_counter
 from urllib.parse import urljoin
@@ -15,10 +14,11 @@ logging.basicConfig(
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
 
+
 async def worker_workload(url: str, requests_per_second: int, stop: asyncio.Event):
     """Set up client session and run workload generator forever"""
 
-    url = urljoin(SSP_URL, "/ad_request")
+    url = urljoin(url, "/ad_request")
     async with aiohttp.ClientSession() as session:
         logger.debug("Starting generate_workload")
         await generate_workload(session, url, requests_per_second, stop)

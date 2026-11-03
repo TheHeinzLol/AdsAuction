@@ -62,14 +62,14 @@ def ad_response_adx() -> AdResponseADX:
 
 @pytest.fixture
 def base_url_ssp() -> str:
-    return "http://localhost:8000"
-
-
-@pytest.fixture
-def base_url_adx() -> str:
     return "http://localhost:8001"
 
 
 @pytest.fixture
+def base_url_adx() -> str:
+    return "http://localhost:8002"
+
+
+@pytest.fixture
 def url_ssp_ad_request() -> str:
-    return "http://localhost:8000/ad_request"
+    return "http://localhost:8001/ad_request"
