@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from time import perf_counter
 from urllib.parse import urljoin
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ from fastapi import FastAPI, Request, Response, status
 from pydantic import ValidationError
 
 from shared.instrument_otel import init_tracing
+from shared.metrics_server import start_metrics_server
 from shared.pydantic_models import (
     AdRequestOWS,
     AdRequestSSP,
@@ -18,18 +20,22 @@ from shared.pydantic_models import (
     AuctionSSP,  # will be replaced with sqlalchemy schema
 )
 
+from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
 
+METRICS_PORT = int(os.getenv("METRICS_PORT", "8041"))
 ADX_URL = os.getenv("ADX_URL", "http://localhost:8002")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # access_logger = logging.getLogger("uvicorn.access")
+    prometheus_server, _thread = start_metrics_server(METRICS_PORT)
     # access_logger.disabled = True
     app.state.ad_request_session = aiohttp.ClientSession()
     app.state.render_session = aiohttp.ClientSession()
@@ -38,6 +44,14 @@ async def lifespan(app: FastAPI):
     # init tracing
     init_tracing(service_name="SSP")
     yield
+
+    try:
+        prometheus_server.shutdown()
+        prometheus_server.server_close()
+        _thread.join(timeout=2)
+        logger.info("Prometheus metrics server shutdown success.")
+    except Exception as e:
+        logger.error(f"Failed to shutdown Prometheus metrics server:\n{e!s}")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -129,20 +143,26 @@ async def send_ad_request(
         return
 
     logger.debug(f"Sending request to {url}")
+    before_request = perf_counter()
     async with session.post(
         url=url, headers={"X-API-KEY": api_key}, json=json.model_dump()
     ) as response:
+        response_time = perf_counter() - before_request
         if response.status != 200:
             response_text = await response.text()
             logger.info(
                 f"Ad request did not return 200. Got status: {response.status}\n"
                 f"Response body:\n{response_text}"
             )
+            AD_REQUESTS_SENT.labels(status="error").inc()
+            AD_REQUEST_DURATION.labels(status="error").observe(response_time)
             if response.status in [401, 403]:
                 return response
         else:
             response_json = await response.json()
             logger.debug(f"Response:\n{response_json}")
+            AD_REQUESTS_SENT.labels(status="success").inc()
+            AD_REQUEST_DURATION.labels(status="success").observe(response_time)
             try:
                 AdResponseADX.model_validate(response_json)
                 return AdResponseADX(**response_json)

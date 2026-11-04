@@ -5,8 +5,8 @@ import signal
 import sys
 
 from shared.instrument_otel import init_tracing
+from shared.metrics_server import start_metrics_server
 
-from .metrics_server import start_metrics_server
 from .user_pool import populate_user_pool
 from .worker_render import worker_render
 from .worker_workload import worker_workload

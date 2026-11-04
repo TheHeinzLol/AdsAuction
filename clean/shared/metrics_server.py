@@ -13,7 +13,7 @@ def start_metrics_server(port: int = 8041) -> None:
     server, thread = start_http_server(port)
     logger.info(
         f"Metrics server started on port {port}.\n"
-        "If you run the server outside docker container,"
-        f"Metrics available at http://localhost:{port}/metrics",
+        "If you run the server outside docker container, "
+        f"metrics available at http://localhost:{port}/metrics",
     )
     return (server, thread)
