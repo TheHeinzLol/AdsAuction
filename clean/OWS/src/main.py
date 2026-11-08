@@ -36,7 +36,7 @@ async def main(
     # OTel tracing
     init_tracing(service_name="OWS")
     # starting a metrics server for prometheus to scrape
-    prometheus_server, thread = start_metrics_server(metrics_server_port)
+    prometheus_server, _thread = start_metrics_server(metrics_server_port)
     # create user pool
     populate_user_pool(10000)
     # Graceful stop set up
@@ -72,7 +72,7 @@ async def main(
     try:
         prometheus_server.shutdown()
         prometheus_server.server_close()
-        thread.join(timeout=2)
+        _thread.join(timeout=2)
         logger.info("Prometheus metrics server shutdown success.")
     except Exception as e:
         logger.error(f"Failed to shutdown Prometheus metrics server:\n{e!s}")

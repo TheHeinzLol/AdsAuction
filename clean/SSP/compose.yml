@@ -1,12 +1,14 @@
 
-configs:
-  file: ../.env
-
 services:
   db-ssp:
     image: postgres:16-alpine  # Alpine for smaller size, glibc not needed
+    env_file:
+      - ../.env
+      - ./.env
     ports:
-      - "${DB_SSP_PORT}:5432"  # Expose to host (optional, remove for production)
+      - "${DB_SSP_PORT:-5433}:5432"  
+    volumes:
+      - db-ssp-volume:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
       interval: 10s
@@ -16,17 +18,54 @@ services:
       - ADXNetwork
     restart: on-failure
 
-  ssp:
-    context: .
-    dockerfile: Dockerfile
+  adx:
+    build:
+      context: ..
+      dockerfile: SSP/Dockerfile.adx
+    env_file:
+      - ../.env
+      - ./.env
+    volumes:
+      - ../shared:/app/shared
+    healthcheck:
+      test:  ["CMD", "python", "-c",
+      "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
     ports: 
-      - "${SSP_PORT}:8000"
+      - "${SSP_PORT:-8002}:8000"
+    networks:
+      - ADXNetwork
+
+  ssp:
+    build:
+      context: ..
+      dockerfile: SSP/Dockerfile
+    env_file:
+      - ../.env
+      - ./.env
+    environment:
+      - SSP_DB_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
+    volumes:
+      - ../shared:/app/shared
+      - ./dependencies:/app/dependencies
+      - ./models:/app/models
+    healthcheck:
+      test:  ["CMD", "python", "-c",
+      "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+    ports: 
+      - "${SSP_PORT:-8001}:8000"
+    networks:
+      - ADXNetwork
+    depends_on:
+      adx:
+        condition: service_healthy
+      db-ssp:
+        condition: service_healthy
 
 # move pgadmin to root later
   pgadmin:
     image: dpage/pgadmin4
     ports:
-      - "5050:80"  # Maps container's port 80 to localhost:5050
+      - "${PGADMIN_PORT:-5051}:80"  # Maps container's port 80 to localhost:5050
     environment:
       PGADMIN_DEFAULT_EMAIL: "admin@example.com"  # Login email
       PGADMIN_DEFAULT_PASSWORD: "admin"          # Login password
@@ -38,3 +77,6 @@ services:
 networks:
   ADXNetwork:
     driver: bridge
+
+volumes:
+  db-ssp-volume:

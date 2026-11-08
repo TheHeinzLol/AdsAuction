@@ -12,12 +12,18 @@ scrape_configs:
     # Hence, in main compose target will be 'http:/ows:{ows_metrics_port}/'
     # ip address is found with 'ip addr show docker0 | grep inet'
       - targets: ['172.17.0.1:8041'] 
+  - job_name: 'ssp_dev'
+    static_configs:
+    # TODO this is for development when metrics are out of container.
+    # Hence, in main compose target will be 'http:/ows:{ows_metrics_port}/'
+    # ip address is found with 'ip addr show docker0 | grep inet'
+      - targets: ['172.17.0.1:8042'] 
 
   - job_name: 'ows'
     static_configs:
-      - targets: ["ows:8041"]
+      - targets: ["ows:${METRICS_PORT:-8041}"]
 
   - job_name: 'ssp'
     static_configs:
-      - targets: ["ssp:8041"]
+      - targets: ["ssp:${METRICS_PORT:-8041}"]
 

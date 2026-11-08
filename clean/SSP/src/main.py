@@ -10,14 +10,12 @@ import aiohttp
 from fastapi import FastAPI, Request, Response, status
 from pydantic import ValidationError
 
-from shared.instrument_otel import init_tracing
 from shared.metrics_server import start_metrics_server
 from shared.pydantic_models import (
     AdRequestOWS,
     AdRequestSSP,
     AdResponseADX,
     AdResponseSSP,
-    AuctionSSP,  # will be replaced with sqlalchemy schema
 )
 
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT
@@ -34,15 +32,17 @@ ADX_URL = os.getenv("ADX_URL", "http://localhost:8002")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await create_database_tables()
     # access_logger = logging.getLogger("uvicorn.access")
     prometheus_server, _thread = start_metrics_server(METRICS_PORT)
     # access_logger.disabled = True
     app.state.ad_request_session = aiohttp.ClientSession()
     app.state.render_session = aiohttp.ClientSession()
     # Get api keys
-    app.state.api_keys = await fetch_api_keys()
-    # init tracing
-    init_tracing(service_name="SSP")
+    try:
+        app.state.api_keys = await fetch_api_keys()
+    except Exception as e:
+        logger.error(f"Failed to fetch API keys:\n{e}")
     yield
 
     try:
@@ -101,10 +101,8 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
 
     ad_response = AdResponseSSP.model_validate(winner, extra="ignore")
     logger.debug(f"ad_response:\n{ad_response}")
-
-    db_insert = AuctionSSP.model_validate(
-        {**winner, "publisher_id": db_insert["publisher_id"]}, extra="ignore"
-    )
+    #TODO validate insert data
+    db_insert = {**winner, "publisher_id": db_insert["publisher_id"]}
     logger.debug(f"db_insert:\n{db_insert}")
     # TODO insert db_insertt into db
 
@@ -216,3 +214,15 @@ def process_responses(
         else:
             continue
     return bids, need_key_update
+
+# Helper functions
+async def create_database_tables():
+    from dependencies.database import async_engine
+    from models.models import Base
+    try:
+        async with async_engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        print("Success: database tables created")
+    except Exception as e:
+        print(f"Failed to create tables: {e}")
+

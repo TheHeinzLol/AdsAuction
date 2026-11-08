@@ -1,7 +1,12 @@
 
+aiohttp
 fastapi[standard]
+prometheus-client
+psycopg[binary]
+pydantic
+sqlalchemy[asyncio]
+
 opentelemetry-distro
 opentelemetry-exporter-otlp
-opentelemetry-api 
-opentelemetry-sdk 
 opentelemetry-instrumentation-fastapi
+
