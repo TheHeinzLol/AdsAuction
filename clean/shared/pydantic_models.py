@@ -49,8 +49,8 @@ class AuctionsSSP(BaseModel):
 
 class BidsSSP(BaseModel):
     auction_id: str
-    time_sent: float
-    time_received: float
+    time_sent: datetime
+    time_received: datetime
     adx_id: str
     creatve_url: str
     bid_amount: str

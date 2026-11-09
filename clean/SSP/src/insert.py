@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from time import perf_counter, time 
+from time import perf_counter
 from urllib.parse import urljoin
 from uuid import uuid4
 
@@ -17,7 +17,6 @@ from shared.pydantic_models import (
     AdResponseADX,
     AdResponseSSP,
     AuctionsSSP,
-    BidsSSP
 )
 
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT
@@ -67,7 +66,7 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     request_data = payload.model_dump()
     logger.debug(f"Raw payload dict:\n{request_data}")
     # generate auction id
-    auction_id = str(uuid4())[:8]
+    auction_id = str(uuid4())
     # db_insert is a placeholder for later insert.
     # With next two lines we swap publisher_id in request_data  with current auction id
     # while saving publisher id for later insert.
@@ -78,6 +77,7 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     # TODO make it pretty
     adx_urls = [urljoin(ADX_URL, f"/adx_{adx_id}_ad_request") for adx_id in range(3)]
     # gather ads. These are pydantic models waiting to be unpacked
+    time_created = datetime.now(UTC)
     tasks = [
         send_ad_request(
             session=session,
@@ -99,14 +99,25 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
 
     # This is overkill for a single line but I brought it out in case of complex
     winner = determine_winner(bids)
+    time_closed = datetime.now(UTC) 
     logger.debug(f"Winner:\n{winner}")
 
     ad_response = AdResponseSSP.model_validate(winner, extra="ignore")
     logger.debug(f"ad_response:\n{ad_response}")
     # TODO validate insert data
+    data_model_map = {
+            "auction_id_ssp":"auction_id",
+            "adx_id": "winner",
+            "bid_amount": "winner_bid"
+    }
     db_insert = {**winner, "publisher_id": publisher_id}
+    db_insert["is_rendered"] = False
+    db_insert.update({"time_created": time_created, "time_closed": time_closed})
+    for old_key, new_key in data_model_map.items():
+        db_insert[new_key] = db_insert.pop(old_key)
+
     logger.debug(f"db_insert:\n{db_insert}")
-    # TODO insert db_insertt into db
+    # TODO insert db_insertt into redis queue for bulk insert
 
     return ad_response
 
@@ -119,20 +130,27 @@ async def confirm_render(payload: dict, request: Request) -> dict:
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+from datetime import UTC
+
 from ..dependencies.database import DBSession
+
+
 @app.get("/insert")
 async def test_insert(db: DBSession) -> None:
-    from datetime import datetime, timezone, timedelta
-    from sqlalchemy import Insert
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import insert
+    from sqlalchemy.exc import IntegrityError
+
     from ..models.models import Auction
-    time_created = datetime.now(timezone.utc)
+    time_created = datetime.now(UTC)
 
     db_insert = {
-        "auction_id_ssp": "8d2c368d-d4e0-4d3e-b28a-896e4ba43c32",
+        "auction_id_ssp": str(uuid4()),
         "ad_url": "adx_2 mock ad url",
         "ttl": 5,
         "adx_id": "adx_2",
-        "auction_id_adx": "8d2c368d-d4e0-4d3e-b28a-896e4ba43c33",
+        "auction_id_adx": str(uuid4()),
         "bid_amount": 5.59,
         "categories": ["gaming", "movies"],
         "publisher_id": "pub_espn",
@@ -144,14 +162,30 @@ async def test_insert(db: DBSession) -> None:
     }
 
     db_insert["is_rendered"] = False
-    time_closed = datetime.now(timezone.utc) + timedelta(seconds=10)
+    time_closed = datetime.now(UTC) + timedelta(seconds=1)
     db_insert.update({"time_created": time_created, "time_closed": time_closed})
     for old_key, new_key in data_model_map.items():
       db_insert[new_key] = db_insert.pop(old_key)
-
-    db_insert = Auction(**AuctionsSSP.model_validate(db_insert).model_dump())
-    db.add(db_insert)
-    await db.commit()
+   #bulk insert 
+    bulk_data = [{**db_insert} for i in range(3)]
+    for item in bulk_data:
+        item["auction_id"] = str(uuid4())
+    db_insert = AuctionsSSP.model_validate(db_insert).model_dump()
+    try:
+        await db.execute(insert(Auction.__table__), db_insert)
+    except IntegrityError as e:
+        logger.error(f"Failed the insert:\n{e}")
+        return {"insert failed": str(e)}
+    try:
+        await db.execute(insert(Auction.__table__), bulk_data)
+    except IntegrityError as e:
+        logger.error(f"Failed the bulk insert:\n{e}")
+        return {"bulk insert failed": e}
+    try:
+        await db.commit()
+    except IntegrityError  as e:
+        logger.error(f"Failed the commit:\n{e}")
+        return {"commit failed": e}
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

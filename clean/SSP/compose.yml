@@ -71,6 +71,8 @@ services:
       PGADMIN_DEFAULT_PASSWORD: "admin"          # Login password
       PGADMIN_CONFIG_SERVER_MODE: 'False'        # Disable server mode for local use
       GUNICORN_ACCESS_LOGFILE: "/dev/null"
+    volumes:
+      - PGAdminVolume:/var/lib/pgadmin4
     networks:
       - ADXNetwork
 
