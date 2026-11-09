@@ -101,7 +101,7 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
 
     ad_response = AdResponseSSP.model_validate(winner, extra="ignore")
     logger.debug(f"ad_response:\n{ad_response}")
-    #TODO validate insert data
+    # TODO validate insert data
     db_insert = {**winner, "publisher_id": db_insert["publisher_id"]}
     logger.debug(f"db_insert:\n{db_insert}")
     # TODO insert db_insertt into db
@@ -114,6 +114,24 @@ async def confirm_render(payload: dict, request: Request) -> dict:
     # session = request.app.state.ad_request_session
     # search auction ID in redis or db
     # pass render into corresponding adx
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post("/insert")
+async def test_insert(payload: dict) -> None:
+    from sqlalchemy import Insert
+
+    data = {
+        "auction_id_ssp": "bcff02c5",
+        "ad_url": "adx_2 mock ad url",
+        "ttl": 5,
+        "adx_id": "adx_2",
+        "auction_id_adx": "9858e4a6",
+        "bid_amount": 5.59,
+        "categories": ["gaming", "movies"],
+        "publisher_id": "pub_espn",
+    }
+    stmt = Insert().values
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -215,14 +233,15 @@ def process_responses(
             continue
     return bids, need_key_update
 
+
 # Helper functions
 async def create_database_tables():
     from dependencies.database import async_engine
     from models.models import Base
+
     try:
         async with async_engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
         print("Success: database tables created")
     except Exception as e:
         print(f"Failed to create tables: {e}")
-

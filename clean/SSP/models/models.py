@@ -19,7 +19,7 @@ class Auction(Base):
     winner_bid: Mapped[float] = mapped_column(Float)
     is_rendered: Mapped[bool] = mapped_column(Boolean)
 
-    bids: Mapped[list('Bid')] = relationship(back_populates="auction")
+    bids: Mapped[list['Bid']] = relationship(back_populates="auction")
     
 
 class Bid(Base):

@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from datetime import datetime
 
 
 class AdRequestCommon(BaseModel):
@@ -37,4 +38,22 @@ class AdResponseADX(AdResponseSSP):
     bid_amount: float
     categories: list[str]
 
+class AuctionsSSP(BaseModel):
+    auction_id: str
+    time_created: datetime
+    time_closed: datetime
+    publisher_id: str
+    winner: str
+    winner_bid: float
+    is_rendered: bool
+
+class BidsSSP(BaseModel):
+    auction_id: str
+    time_sent: float
+    time_received: float
+    adx_id: str
+    creatve_url: str
+    bid_amount: str
+    categories: list[str]
+    is_winning: bool
 
