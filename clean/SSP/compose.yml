@@ -82,3 +82,4 @@ networks:
 
 volumes:
   db-ssp-volume:
+  PGAdminVolume:

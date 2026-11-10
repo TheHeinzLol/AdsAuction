@@ -39,4 +39,7 @@ class Bid(Base):
     categories: Mapped[list] = mapped_column(ARRAY(String), nullable=False)
 
     auction: Mapped['Auction'] = relationship(back_populates="bids")
-    
+
+    __table_args__ = (
+        CheckConstraint("bid_amount > 0", name="bid_amount_positive"),
+    )
