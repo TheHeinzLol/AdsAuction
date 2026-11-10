@@ -1,5 +1,22 @@
 
 services:
+  redis-ssp:
+    image: redis:8.6
+    env_file:
+      - ../.env
+    ports: 
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis-ssp-volume:/AdsAuction/app/exchange/redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 86400s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ADXNetwork
+    restart: on-failure
+
   db-ssp:
     image: postgres:16-alpine  # Alpine for smaller size, glibc not needed
     env_file:
@@ -11,7 +28,7 @@ services:
       - db-ssp-volume:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
-      interval: 10s
+      interval: 86400s
       timeout: 5s
       retries: 5
     networks:
@@ -30,6 +47,9 @@ services:
     healthcheck:
       test:  ["CMD", "python", "-c",
       "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 86400s
+      timeout: 5s
+      retries: 
     ports: 
       - "${SSP_PORT:-8002}:8000"
     networks:
@@ -51,14 +71,19 @@ services:
     healthcheck:
       test:  ["CMD", "python", "-c",
       "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 86400s
+      timeout: 5s
+      retries: 
     ports: 
       - "${SSP_PORT:-8001}:8000"
     networks:
       - ADXNetwork
     depends_on:
-     # adx:
-      #  condition: service_healthy
+      adx:
+        condition: service_healthy
       db-ssp:
+        condition: service_healthy
+      redis-ssp:
         condition: service_healthy
 
 # move pgadmin to root later
@@ -83,3 +108,4 @@ networks:
 volumes:
   db-ssp-volume:
   PGAdminVolume:
+  redis-ssp-volume:
