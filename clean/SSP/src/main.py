@@ -18,6 +18,7 @@ from shared.pydantic_models import (
     AdRequestSSP,
     AdResponseADX,
     AdResponseSSP,
+    AuctionSSP
 )
 
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT
@@ -71,6 +72,8 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/ad_request")
 async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
+    # get redis
+    redis = app.state.redis
     # get session
     session = request.app.state.ad_request_session
     # cast pydantic model into dict
@@ -78,17 +81,20 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     logger.debug(f"Raw payload dict:\n{request_data}")
     # generate auction id
     auction_id = str(uuid4())
-    # db_insert is a placeholder for later insert.
-    # With next two lines we swap publisher_id in request_data  with current auction id
-    # while saving publisher id for later insert.
-    publisher_id = request_data.pop("publisher_id")}
+    # caching auction uuid for later bulk insert into database
+    try:
+        await redis.rpush("auction:to_process", auction_id)
+    except Exception as e:
+        print(f"\n=========================\nFailed to store auction uuid:\n{e}")
+
+    publisher_id = request_data.pop("publisher_id")
     request_data["auction_id_ssp"] = auction_id
     logger.debug(f"request_data:\n{request_data}")
     # a crutch for adx endpoints
     # TODO make it pretty
     adx_urls = [urljoin(ADX_URL, f"/adx_{adx_id}_ad_request") for adx_id in range(3)]
     # gather ads. These are pydantic models waiting to be unpacked
-    time_opened = datetime.now(UTC)
+    time_created = datetime.now(UTC)
     tasks = [
         send_ad_request(
             session=session,
@@ -101,32 +107,58 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     responses = await asyncio.gather(*tasks)
     bids, need_update_keys = process_responses(responses)
     logger.debug(f"bids:\n{bids}")
+
+    if not bids:
+        db_insert = {
+                "auction_id": auction_id,
+                "winner": None,
+                "winner_bid": None,
+                "time_closed": datetime.now(UTC),
+                }
+    else:
+        # This is overkill for a single line but I brought it out in case of complex
+        winner = determine_winner(bids)
+        time_closed = datetime.now(UTC)
+        winner["is_winning"] = True
+        db_insert = {**winner, "time_closed": time_closed}
+        logger.debug(f"Winner:\n{winner}")
+        # == func prepare db insert===
+        data_model_map = {
+                "auction_id_ssp":"auction_id",
+                "adx_id": "winner",
+                "bid_amount": "winner_bid"
+        }
+
+        for old_key, new_key in data_model_map.items():
+            db_insert[new_key] = db_insert.pop(old_key)
+        # == func prepare db insert=== end
+
+    db_insert.update({"publisher_id": publisher_id, "time_created": time_created, "is_rendered": False})
+    db_insert = AuctionSSP.model_validate(db_insert).model_dump()
+    logger.debug(f"db_insert:\n{db_insert}")
+    # TODO insert db_insertt into redis queue
+    try:
+        await redis.hset(f"auction:{auction_id}", mapping=db_insert)
+    except Exception as e:
+        print(f"\n=========================\nFailed to hset auction:\n{e}")
+
+    # find a good place for this if
     if need_update_keys:
         request.app.state.api_keys = await fetch_api_keys()
+
     # no bids handling
     if not bids:
         # TODO insert empty auction in db
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+    else:
+        try:
+            for bid in bids:
+                await redis.rpush(f"auction:{auction_uuid}:bids", json.dumps(bid))
+        except Exception as e:
+            print(f"\n=========================\nFailed to rpush bid {bid}:\n{e}"
 
-    # This is overkill for a single line but I brought it out in case of complex
-    winner = determine_winner(bids)
-    time_closed = datetime.now(UTC)
-    logger.debug(f"Winner:\n{winner}")
-    data_model_map = {
-            "auction_id_ssp":"auction_id",
-            "adx_id": "winner",
-            "bid_amount": "winner_bid"
-    }
-    db_insert = {**winner, "publisher_id": publisher_id}
-    db_insert["is_rendered"] = False
-    db_insert.update({"time_created": time_created, "time_closed": time_closed})
-    for old_key, new_key in data_model_map.items():
-        db_insert[new_key] = db_insert.pop(old_key)
-    logger.debug(f"db_insert:\n{db_insert}")
-    # TODO insert db_insertt into redis queue
     ad_response = AdResponseSSP.model_validate(winner, extra="ignore")
     logger.debug(f"ad_response:\n{ad_response}")
-
     return ad_response
 
 
@@ -143,9 +175,11 @@ from ..dependencies.database import DBSession
 async def test_insert(db: DBSession) -> None:
     from sqlalchemy import insert
     from sqlalchemy.exc import IntegrityError
-
+    from datetime import timedelta
+    from models.models import Auction
+    time_created, time_closed  = datetime.now(UTC), datetime.now(UTC) + timedelta(seconds=1)
     # foolows after db_insert = {**winner, "publisher_id": publisher_id}
-    data = {
+    db_insert = {
         "auction_id_ssp": str(uuid4()),
         "ad_url": "adx_2 mock ad url",
         "ttl": 5,
@@ -182,7 +216,6 @@ async def test_insert(db: DBSession) -> None:
     except IntegrityError  as e:
         logger.error(f"Failed the commit:\n{e}")
         return {"commit failed": e}
-    stmt = insert().values
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

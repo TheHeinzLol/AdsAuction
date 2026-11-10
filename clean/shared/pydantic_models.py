@@ -43,8 +43,8 @@ class AuctionsSSP(BaseModel):
     time_created: datetime
     time_closed: datetime
     publisher_id: str
-    winner: str
-    winner_bid: float
+    winner: str | None
+    winner_bid: float | None
     is_rendered: bool
 
 class BidsSSP(BaseModel):
