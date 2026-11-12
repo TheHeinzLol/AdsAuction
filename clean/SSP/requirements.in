@@ -4,6 +4,7 @@ fastapi[standard]
 prometheus-client
 psycopg[binary]
 pydantic
+redis
 sqlalchemy[asyncio]
 
 opentelemetry-distro

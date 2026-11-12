@@ -35,25 +35,32 @@ class AdResponseSSP(BaseModel):
 class AdResponseADX(AdResponseSSP):
     adx_id: str
     auction_id_adx: str
+#    creative_url: str
     bid_amount: float
     categories: list[str]
 
-class AuctionsSSP(BaseModel):
+class BidSSP(AdResponseADX):
+
+    time_sent: float
+    time_received: float
+    is_winning: bool
+
+class ModelAuctionsSSP(BaseModel):
     auction_id: str
-    time_created: datetime
-    time_closed: datetime
+    time_created: float
+    time_closed: float
     publisher_id: str
     winner: str | None
     winner_bid: float | None
     is_rendered: bool
 
-class BidsSSP(BaseModel):
+class ModelBidsSSP(BaseModel):
     auction_id: str
-    time_sent: datetime
-    time_received: datetime
+    time_sent: float
+    time_received: float
     adx_id: str
-    creatve_url: str
-    bid_amount: str
+    creative_url: str
+    bid_amount: float
     categories: list[str]
     is_winning: bool
 

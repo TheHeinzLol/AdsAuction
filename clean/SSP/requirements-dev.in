@@ -1,6 +1,7 @@
 fastapi
 pydantic
 prometheus-client
+redis
 sqlalchemy
 
 aioresponses-ng

@@ -49,7 +49,7 @@ services:
       "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
       interval: 86400s
       timeout: 5s
-      retries: 
+      retries: 5
     ports: 
       - "${SSP_PORT:-8002}:8000"
     networks:
@@ -73,19 +73,19 @@ services:
       "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
       interval: 86400s
       timeout: 5s
-      retries: 
+      retries: 5
     ports: 
       - "${SSP_PORT:-8001}:8000"
     networks:
       - ADXNetwork
-    depends_on:
-      adx:
-        condition: service_healthy
-      db-ssp:
-        condition: service_healthy
-      redis-ssp:
-        condition: service_healthy
-
+#    depends_on:
+#      adx:
+#        condition: service_healthy
+#      db-ssp:
+#        condition: service_healthy
+#      redis-ssp:
+#        condition: service_healthy
+#
 # move pgadmin to root later
   pgadmin:
     image: dpage/pgadmin4
