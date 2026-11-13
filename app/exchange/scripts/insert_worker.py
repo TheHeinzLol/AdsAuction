@@ -1,8 +1,17 @@
+
 import asyncio
 import sqlalchemy
 from fastapi import Request
 from redis import asyncio as aioredis
 import time
+import logging 
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(levelname)s [%(funcName)s]:\n%(message)s",
+)
+
 async def bulk_insert(
         redis: aioredis.Redis,
         #rename to batch size

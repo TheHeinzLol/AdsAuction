@@ -4,27 +4,28 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from time import perf_counter
 from urllib.parse import urljoin
 from uuid import uuid4
 
 import aiohttp
-from datetime import datetime, UTC
 from fastapi import FastAPI, Request, Response, status
 from pydantic import ValidationError
 
-from ..dependencies.redis import close_redis, get_redis
 from shared.metrics_server import start_metrics_server
 from shared.pydantic_models import (
     AdRequestOWS,
     AdRequestSSP,
-    BidSSP,
     AdResponseSSP,
+    BidSSP,
     ModelAuctionsSSP,
-    ModelBidsSSP
+    ModelBidsSSP,
 )
-from .worker_insert import bulk_insert
+
+from ..dependencies.redis import close_redis, get_redis
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT
+from .worker_insert import worker_insert
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -32,7 +33,7 @@ logging.basicConfig(
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
     force=True
 )
-logging.getLogger("SSP.src.worker_insert").setLevel(logging.DEBUG)
+logging.getLogger("SSP.src.worker_insert").setLevel(logging.INFO)
 
 METRICS_PORT = int(os.getenv("METRICS_PORT", "8041"))
 ADX_HOST = os.getenv("ADX_HOST", "localhost")
@@ -42,7 +43,6 @@ ADX_URL = f"http://{ADX_HOST}:{ADX_PORT}"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print(f"Loggers: {list(logging.root.manager.loggerDict.keys())}")
     # Get redis instance
     try:
         app.state.redis = await get_redis()
@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
     app.state.render_session = aiohttp.ClientSession()
 
     app.state.workers = {
-        "insert": asyncio.create_task(bulk_insert(app.state.redis))
+        "insert": asyncio.create_task(worker_insert(app.state.redis))
     }
     yield
     # stop workers
@@ -105,18 +105,15 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     logger.debug(f"Raw payload dict:\n{request_data}")
     # generate auction id
     auction_id = str(uuid4())
-    # caching auction uuid for later bulk insert into database
-    try:
-        await redis.rpush("auction:to_process", auction_id)
-        logger.info(f"pushed auction {auction_id}")
-    except Exception as e:
-        logger.error(f"\n=========================\nFailed to store auction id:\n{e}")
-
     publisher_id = request_data.pop("publisher_id")
+    try:
+        request_data = AdRequestSSP(**request_data)
+    except ValidationError as e:
+        logger.error(f"Failed casting request data to pydantic model:\n{str(e)}")
+        raise
     request_data["auction_id_ssp"] = auction_id
     logger.debug(f"request_data:\n{request_data}")
     # a crutch for adx endpoints
-    # TODO make it pretty
     adx_urls = [urljoin(ADX_URL, f"/adx_{adx_id}_ad_request") for adx_id in range(3)]
     # gather ads. These are pydantic models waiting to be unpacked
     time_created = datetime.now(UTC).timestamp()
@@ -161,13 +158,7 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     db_insert.update({"publisher_id": publisher_id, "time_created": time_created, "is_rendered": False})
     db_insert = ModelAuctionsSSP.model_validate(db_insert, extra="ignore").model_dump()
     logger.debug(f"db_insert:\n{db_insert}")
-    # TODO insert db_insertt into redis queue
-    try:
 
-        logger.debug(f"Pushing auction {db_insert}")
-        await redis.hset(f"auction:{auction_id}", mapping={**db_insert, "is_rendered": 0})
-    except Exception as e:
-        logger.error(f"\n=========================\nFailed to hset auction:\n{e}")
 
     # find a good place for this if
     if need_update_keys:
@@ -188,7 +179,19 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
                 logger.debug(f"Pushing bid {push_bid}")
                 await redis.rpush(f"auction:{auction_id}:bids", json.dumps(push_bid))
         except Exception as e:
-            logger.error(f"\n=========================\nFailed to rpush bid {push_bid}:\n{e}")
+            logger.error(f"Failed to rpush bid {push_bid}:\n{e}")
+    # TODO insert db_insertt into redis queue
+    try:
+        logger.debug(f"Pushing auction {db_insert}")
+        await redis.rpush(f"auction:{auction_id}", json.dumps(db_insert))
+    except Exception as e:
+        logger.error(f"Failed to hset auction:\n{e}")
+    # caching auction uuid for later bulk insert into database
+    try:
+        await redis.rpush("auction:to_process", auction_id)
+        logger.info(f"pushed auction {auction_id}")
+    except Exception as e:
+        logger.error(f"Failed to store auction id:\n{e}")
 
     ad_response = AdResponseSSP.model_validate(winner, extra="ignore")
     logger.debug(f"ad_response:\n{ad_response}")
@@ -204,12 +207,15 @@ async def confirm_render(payload: dict, request: Request) -> dict:
 
 
 from ..dependencies.database import DBSession
+
+
 @app.post("/insert")
 async def test_insert(db: DBSession) -> None:
+    from datetime import timedelta
+
+    from models.models import Auction
     from sqlalchemy import insert
     from sqlalchemy.exc import IntegrityError
-    from datetime import timedelta
-    from models.models import Auction
     time_created, time_closed  = datetime.now(UTC), datetime.now(UTC) + timedelta(seconds=1)
     # foolows after db_insert = {**winner, "publisher_id": publisher_id}
     db_insert = {

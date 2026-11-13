@@ -78,14 +78,14 @@ services:
       - "${SSP_PORT:-8001}:8000"
     networks:
       - ADXNetwork
-#    depends_on:
-#      adx:
-#        condition: service_healthy
-#      db-ssp:
-#        condition: service_healthy
-#      redis-ssp:
-#        condition: service_healthy
-#
+    depends_on:
+      adx:
+        condition: service_healthy
+      db-ssp:
+        condition: service_healthy
+      redis-ssp:
+        condition: service_healthy
+
 # move pgadmin to root later
   pgadmin:
     image: dpage/pgadmin4

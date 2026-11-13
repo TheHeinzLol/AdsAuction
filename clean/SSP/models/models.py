@@ -12,8 +12,8 @@ class Base(DeclarativeBase):
 class Auction(Base):
     __tablename__ = "ssp_auctions"
     auction_id: Mapped[str] = mapped_column(Uuid(as_uuid=True, native_uuid=True), primary_key=True)
-    time_created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    time_closed: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    time_created: Mapped[float] = mapped_column(Float, nullable=False)
+    time_closed: Mapped[float] = mapped_column(Float, nullable=False)
     publisher_id: Mapped[str] = mapped_column(String, nullable=False)
     winner: Mapped[str] = mapped_column(String)
     winner_bid: Mapped[float] = mapped_column(Float)
@@ -30,8 +30,8 @@ class Bid(Base):
             unique=False,
             nullable=False,
             )
-    time_sent: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    time_received: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    time_sent: Mapped[float] = mapped_column(Float, nullable=False)
+    time_received: Mapped[float] = mapped_column(Float, nullable=False)
     adx_id: Mapped[str] = mapped_column(String, nullable=False)
     creative_url: Mapped[str] = mapped_column(String, nullable=False)
     bid_amount: Mapped[float] = mapped_column(Float, nullable=False)
