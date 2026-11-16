@@ -48,6 +48,7 @@ async def populate(redis):
                      'bid_amount': 2.71,
                      'categories': ['sports', 'food', 'porn'],
                      'is_winning': True
+                     'render_beacon': f"render {auction_id}"
                 }
                 await redis.rpush(f"auction:{auction_id}:bids", json.dumps(bid))
         except Exception as e:
