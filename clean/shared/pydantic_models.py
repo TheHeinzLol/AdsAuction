@@ -35,9 +35,10 @@ class AdResponseSSP(BaseModel):
 class AdResponseADX(AdResponseSSP):
     adx_id: str
     auction_id_adx: str
-#    creative_url: str
+    creative_url: str
     bid_amount: float
     categories: list[str]
+    render_beacon: str
 
 class BidSSP(AdResponseADX):
 
