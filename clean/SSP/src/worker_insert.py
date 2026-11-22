@@ -1,19 +1,16 @@
 
 import asyncio
 import sqlalchemy
-from fastapi import Request
 from redis import asyncio as aioredis
 import json
 import time
 import logging
 
-from ..dependencies.database import SessionLocal
-from ..models.models import Auction, Bid
+from dependencies.database import SessionLocal
+from models.models import Auction, Bid
 from sqlalchemy import insert
 from sqlalchemy.exc import IntegrityError
 
-# del
-from random import random
 logger = logging.getLogger(__name__)
 
 failed_rows = {
@@ -25,7 +22,10 @@ async def worker_insert(
         redis: aioredis.Redis,
         #rename to batch size
         batch_size: int = 2500,
-        interval_sec: int = 2):
+        interval_sec: int = 2
+):
+    if redis is None:
+        return
     try:
         logger.info("worker started")
         last_insert_time = time.time()
@@ -38,9 +38,7 @@ async def worker_insert(
                 bids_to_insert = []
                 #get the records from redis
                 auction_ids = await redis.lrange("auction:to_process", 0, batch_size - 1)
-                logger.debug(f"=====auction_ids=====:\n{auction_ids}")
                 if not auction_ids:
-                    logger.debug(f"Continuing...")
                     continue
                 for auction_id in auction_ids:
                     logger.debug(f"=====single auction_id=====:\n{auction_id}")
@@ -49,12 +47,12 @@ async def worker_insert(
                     auction_data = json.loads(auction_data[0])
                     logger.debug(f"=====auction_data after json.loads()=====:\n{auction_data}")
                     aucs_to_insert.append(auction_data)
-                    if random() < 0.02:
-                        aucs_to_insert.append(auction_data)
                     # get bids
                     raw_bids = await redis.lrange(f"auction:{auction_id}:bids", 0, -1)
                     logger.debug(f"=====raw_bids=====:\n{raw_bids}")
                     bids = [json.loads(b) for b in raw_bids]
+                    for bid in bids:
+                        bid["auction_id"] = bid.pop("auction_id_ssp")
                     bids_to_insert.extend(bids)
                     logger.debug(f"bids: \n{bids}")
                     try:
@@ -73,9 +71,11 @@ async def worker_insert(
                 pending = await redis.llen("auction:to_process")
                 logger.info(f"pending:{pending}")
                 last_insert_time = time.time()
+    except asyncio.CancelledError:
+        raise  # Let graceful shutdown work
     except Exception as e:
         logger.error(f"Worker crashed: {e}")
-        raise
+        await asyncio.sleep(1)
 
 async def bulk_insert(aucs: list[dict], bids: list[dict]):
     async with SessionLocal() as db:
@@ -101,4 +101,5 @@ async def insert_with_bisection(db, table, data_batch):
         mid = len(data_batch) // 2
         await insert_with_bisection(db, table, data_batch[:mid])
         await insert_with_bisection(db, table, data_batch[mid:])
+
 

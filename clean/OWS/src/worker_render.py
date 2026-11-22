@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import time
-from urllib.parse import urljoin
 
 import aiohttp
 
@@ -12,21 +11,22 @@ from .metrics import RENDERS_CONFIRMED
 
 logger = logging.getLogger(__name__)
 
-SSP_URL = os.getenv("SSP_URL", "http://localhost:8001")
-render_url = urljoin(SSP_URL, "/confirm_render")
-
-
-async def worker_render(stop: asyncio.Event):
-    connector = aiohttp.TCPConnector(limit=400)
+async def worker_render(
+        stop: asyncio.Event,
+        url: str,
+        concurrency: int
+):
+    connector = aiohttp.TCPConnector(enable_cleanup_closed=True)
     async with aiohttp.ClientSession(connector=connector) as session:
-        await render_ad(session, stop)
+        await render_ad(session, stop, url, concurrency)
 
 
-async def render_ad(session: aiohttp.ClientSession, stop: asyncio.Event):
+async def render_ad(session: aiohttp.ClientSession, stop: asyncio.Event, url: str, concurrency: int):
     """
     Perpetually checks for items in queue to send render confirmation.
     Waits 0.1s if queue is empty.
     """
+    semaphore = asyncio.Semaphore(concurrency)
     while not stop.is_set():
         item = peek()
         if item is None:
@@ -40,7 +40,7 @@ async def render_ad(session: aiohttp.ClientSession, stop: asyncio.Event):
             queue.remove(item)
             try:
                 await send_render_confirmation(
-                    session=session, url=render_url, auction_id=auction_id
+                    session=session, url=url, auction_id=auction_id, semaphore=semaphore
                 )
             except Exception as e:
                 logger.info(f"\nFailed render confirmation request. Error:\n{e}\n")
@@ -49,13 +49,13 @@ async def render_ad(session: aiohttp.ClientSession, stop: asyncio.Event):
 
 
 async def send_render_confirmation(
-    session: aiohttp.ClientSession, url: str, auction_id: str
+        session: aiohttp.ClientSession, url: str, auction_id: str, semaphore: asyncio.locks.Semaphore
 ) -> None:
     async with session.post(
-        url=render_url, json={"auction_id": auction_id, "render_status": "rendered"}
+        url=url, json={"auction_id_ssp": auction_id}
     ) as response:
-        response_body = await response.json()
         if response.status not in [200, 204]:
+            response_body = await response.json()
             logger.info(f"\nFailed to confirm rendering. Response:\n{response_body}")
         else:
             RENDERS_CONFIRMED.inc()

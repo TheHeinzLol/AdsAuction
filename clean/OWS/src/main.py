@@ -7,6 +7,7 @@ import sys
 from shared.instrument_otel import init_tracing
 from shared.metrics_server import start_metrics_server
 
+from urllib.parse import urljoin
 from .user_pool import populate_user_pool
 from .worker_render import worker_render
 from .worker_workload import worker_workload
@@ -16,22 +17,23 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
 )
-logging.getLogger("OWS.src.worker_workload").setLevel(logging.WARNING)
+logging.getLogger("OWS.src.worker_workload").setLevel(logging.INFO)
 logging.getLogger("OWS.src.generator_request").setLevel(logging.WARNING)
 logging.getLogger("OWS.src.worker_render").setLevel(logging.WARNING)
 logging.getLogger("OWS.src.delayed_queue").setLevel(logging.WARNING)
 
 METRICS_PORT = int(os.getenv("METRICS_PORT", "8041"))
-
-# Read from environment, fall back to localhost.
-# This allows me to edit the script without launching docker compose every time
-SSP_URL = os.getenv("SSP_URL", "http://localhost:8001")
-
+SSP_HOST = os.getenv("SSP_HOST", "localhost")
+SSP_PORT = 8001 if SSP_HOST == "localhost" else 8000
+SSP_URL = f"http://{SSP_HOST}:{SSP_PORT}"
+RENDER_URL = urljoin(SSP_URL, "/confirm_render")
 
 async def main(
     requests_per_second: int,
     metrics_server_port: int = METRICS_PORT,
     ssp_url: str = SSP_URL,
+    render_url: str = RENDER_URL,
+    concurrency: int = 150
 ):
     # OTel tracing
     init_tracing(service_name="OWS")
@@ -48,11 +50,14 @@ async def main(
     tasks = [
         asyncio.create_task(
             worker_workload(
-                ssp_url, requests_per_second=requests_per_second, stop=stop
+                ssp_url,
+                requests_per_second=requests_per_second,
+                stop=stop,
+                concurrency=concurrency
             ),
             name="workload_task",
         ),
-        asyncio.create_task(worker_render(stop), name="render_task"),
+        asyncio.create_task(worker_render(stop, render_url, concurrency=concurrency), name="render_task"),
     ]
     # wait for graceful stop
     await stop.wait()
@@ -80,4 +85,5 @@ async def main(
 
 if __name__ == "__main__":
     num_requests = int(sys.argv[1])
-    asyncio.run(main(num_requests))
+    concurrency = int(sys.argv[2])
+    asyncio.run(main(num_requests, concurrency=concurrency))

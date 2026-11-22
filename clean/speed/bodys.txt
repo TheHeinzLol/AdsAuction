@@ -1,0 +1,11 @@
+{"user_id": "user_12345",
+    "category": "technology",
+    "floor_price": 0.50,
+    "device": "mobile",
+    "channel": "web",
+    "ad_size": [300, 250],
+    "region": "DE",
+    "languages": ["de", "en"],
+    "local_hour": 14,
+    "auction_id_ssp": "ssp_auction_98765"}
+

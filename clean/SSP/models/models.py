@@ -15,8 +15,8 @@ class Auction(Base):
     time_created: Mapped[float] = mapped_column(Float, nullable=False)
     time_closed: Mapped[float] = mapped_column(Float, nullable=False)
     publisher_id: Mapped[str] = mapped_column(String, nullable=False)
-    winner: Mapped[str] = mapped_column(String)
-    winner_bid: Mapped[float] = mapped_column(Float)
+    winner: Mapped[str] = mapped_column(String, nullable=True)
+    winner_bid: Mapped[float] = mapped_column(Float, nullable=True)
     is_rendered: Mapped[bool] = mapped_column(Boolean)
 
     bids: Mapped[list['Bid']] = relationship(back_populates="auction")
@@ -27,7 +27,6 @@ class Bid(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     auction_id: Mapped[uuid.UUID] = mapped_column(
             ForeignKey('ssp_auctions.auction_id'),
-            unique=False,
             nullable=False,
             )
     time_sent: Mapped[float] = mapped_column(Float, nullable=False)

@@ -1,0 +1,22 @@
+services:
+  ows:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ./.env
+      - ../.env
+    volumes:
+      - ../shared:/app/shared
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      ssp:
+        condition: service_healthy
+    networks:
+      - ADXNetwork
+
+networks:
+  ADXNetwork:
+    driver: bridge
+

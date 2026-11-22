@@ -13,8 +13,11 @@ import aiohttp
 from fastapi import FastAPI, Request, Response, status
 from pydantic import ValidationError
 
+from dependencies.database import async_engine
+from models.models import Base
 from shared.metrics_server import start_metrics_server
 from shared.pydantic_models import (
+    AdRenderOWS,
     AdRequestOWS,
     AdRequestSSP,
     AdResponseSSP,
@@ -23,24 +26,25 @@ from shared.pydantic_models import (
     ModelBidsSSP,
 )
 
-from ..dependencies.redis import close_redis, get_redis
+from dependencies.redis import close_redis, get_redis
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT
 from .worker_insert import worker_insert
+from .worker_render import worker_render
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
-    level=logging.WARNING,
+    level=logging.INFO,
     format="%(levelname)s [%(funcName)s]:\n%(message)s",
     force=True
 )
-logging.getLogger("SSP.src.worker_insert").setLevel(logging.INFO)
+logging.getLogger("SSP.src.worker_insert").setLevel(logging.ERROR)
+logging.getLogger("SSP.src.worker_render").setLevel(logging.DEBUG)
 
 METRICS_PORT = int(os.getenv("METRICS_PORT", "8041"))
 ADX_HOST = os.getenv("ADX_HOST", "localhost")
-ADX_PORT = os.getenv("ADX_PORT", "8002")
+ADX_PORT = 8002 if ADX_HOST == "localhost" else 8000
 ADX_URL = f"http://{ADX_HOST}:{ADX_PORT}"
-
-
+CONCURRENCY = 150
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Get redis instance
@@ -61,24 +65,25 @@ async def lifespan(app: FastAPI):
         logger.info(f"API keys:\n{json.dumps(app.state.api_keys, indent=2)}")
     except Exception as e:
         logger.error(f"Failed to fetch API keys:\n{e}")
-
-    # access_logger = logging.getLogger("uvicorn.access")
+    
+    app.state.semaphore = asyncio.Semaphore(CONCURRENCY)
+    access_logger = logging.getLogger("uvicorn.access")
+    access_logger.disabled = True
     prometheus_server, _thread = start_metrics_server(METRICS_PORT)
-    # access_logger.disabled = True
-    app.state.ad_request_session = aiohttp.ClientSession()
-    app.state.render_session = aiohttp.ClientSession()
+    connector = aiohttp.TCPConnector(enable_cleanup_closed=True)
+    app.state.ad_request_session = aiohttp.ClientSession(connector=connector)
 
-    app.state.workers = {
-        "insert": asyncio.create_task(worker_insert(app.state.redis))
-    }
+    workers = [
+        asyncio.create_task(worker_insert(app.state.redis), name="insert"),
+        asyncio.create_task(worker_render(app.state.redis), name="render")
+        ]
     yield
     # stop workers
-    for name, worker in app.state.workers.items():
+    for worker in workers: 
         worker.cancel()
-        print(f"Cancelling {name} worker")
+        logger.info(f"Cancelling {worker.get_name()} worker")
     # close connections
     await app.state.ad_request_session.close()
-    await app.state.render_session.close()
 
     await close_redis()
     
@@ -91,8 +96,8 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to shutdown Prometheus metrics server:\n{e!s}")
 
 
-app = FastAPI(lifespan=lifespan)
 
+app = FastAPI(lifespan=lifespan)
 
 @app.post("/ad_request")
 async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
@@ -100,32 +105,28 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     redis = app.state.redis
     # get session
     session = request.app.state.ad_request_session
+    semaphore = request.app.state.semaphore
     # cast pydantic model into dict
     request_data = payload.model_dump()
     logger.debug(f"Raw payload dict:\n{request_data}")
     # generate auction id
     auction_id = str(uuid4())
-    publisher_id = request_data.pop("publisher_id")
-    try:
-        request_data = AdRequestSSP(**request_data)
-    except ValidationError as e:
-        logger.error(f"Failed casting request data to pydantic model:\n{str(e)}")
-        raise
     request_data["auction_id_ssp"] = auction_id
+    publisher_id = request_data.pop("publisher_id")
     logger.debug(f"request_data:\n{request_data}")
     # a crutch for adx endpoints
-    adx_urls = [urljoin(ADX_URL, f"/adx_{adx_id}_ad_request") for adx_id in range(3)]
+    adx_urls = [urljoin(ADX_URL, f"/ad_request_adx_{adx_id}") for adx_id in range(1)]
     # gather ads. These are pydantic models waiting to be unpacked
     time_created = datetime.now(UTC).timestamp()
-    tasks = [
-        send_ad_request(
-            session=session,
-            url=adx_url,
-            json=AdRequestSSP(**request_data),
-            api_key=get_api_key(request=request, adx_url=adx_url),
-        )
-        for adx_url in adx_urls
-    ]
+    async def controlled_request(adx_url):
+        async with semaphore:
+            return await send_ad_request(
+                session=session,
+                url=adx_url,
+                json=request_data,
+                api_key=get_api_key(request=request, adx_url=adx_url)
+            )
+    tasks = [controlled_request(adx_url) for adx_url in adx_urls ]
     responses = await asyncio.gather(*tasks)
     bids, need_update_keys = process_responses(responses)
     logger.debug(f"bids:\n{bids}")
@@ -146,7 +147,7 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
         logger.debug(f"Winner:\n{winner}")
         # == func prepare db insert===
         data_model_map = {
-                "auction_id_ssp":"auction_id",
+                "auction_id_ssp": "auction_id",
                 "adx_id": "winner",
                 "bid_amount": "winner_bid"
         }
@@ -163,35 +164,19 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
     # find a good place for this if
     if need_update_keys:
         request.app.state.api_keys = await fetch_api_keys()
-
-    # no bids handling
+    if redis:
+        logger.debug(f"bids before rpush:\n{bids}")
+        async with redis.pipeline() as pipe:
+            for bid in bids:
+                pipe.rpush(f"auction:{auction_id}:bids", json.dumps(bid))
+                logging
+            pipe.rpush(f"auction:{auction_id}", json.dumps(db_insert))
+            pipe.rpush("auction:to_process", auction_id)
+            await pipe.execute()
+        # no bids handling
     if not bids:
         # TODO insert empty auction in db
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    else:
-        try:
-            for bid in bids:
-                push_bid = {**bid}
-                push_bid['auction_id']=push_bid.pop('auction_id_ssp')
-                #TODO REPLACE WITH ACTUAL ADX RESPONSE 
-                push_bid['creative_url']="asstwat"
-                push_bid = ModelBidsSSP.model_validate(push_bid, extra="ignore").model_dump()
-                logger.debug(f"Pushing bid {push_bid}")
-                await redis.rpush(f"auction:{auction_id}:bids", json.dumps(push_bid))
-        except Exception as e:
-            logger.error(f"Failed to rpush bid {push_bid}:\n{e}")
-    # TODO insert db_insertt into redis queue
-    try:
-        logger.debug(f"Pushing auction {db_insert}")
-        await redis.rpush(f"auction:{auction_id}", json.dumps(db_insert))
-    except Exception as e:
-        logger.error(f"Failed to hset auction:\n{e}")
-    # caching auction uuid for later bulk insert into database
-    try:
-        await redis.rpush("auction:to_process", auction_id)
-        logger.info(f"pushed auction {auction_id}")
-    except Exception as e:
-        logger.error(f"Failed to store auction id:\n{e}")
 
     ad_response = AdResponseSSP.model_validate(winner, extra="ignore")
     logger.debug(f"ad_response:\n{ad_response}")
@@ -199,64 +184,13 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
 
 
 @app.post("/confirm_render")
-async def confirm_render(payload: dict, request: Request) -> dict:
-    # session = request.app.state.ad_request_session
-    # search auction ID in redis or db
-    # pass render into corresponding adx
+async def confirm_render(payload: AdRenderOWS, request: Request) -> dict:
+    redis = request.app.state.redis
+    try:
+        await redis.rpush(f"auction:to_render", payload.auction_id_ssp)
+    except Exception as e:
+        logger.error(f"Failed to push render:\n{e}")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-from ..dependencies.database import DBSession
-
-
-@app.post("/insert")
-async def test_insert(db: DBSession) -> None:
-    from datetime import timedelta
-
-    from models.models import Auction
-    from sqlalchemy import insert
-    from sqlalchemy.exc import IntegrityError
-    time_created, time_closed  = datetime.now(UTC), datetime.now(UTC) + timedelta(seconds=1)
-    # foolows after db_insert = {**winner, "publisher_id": publisher_id}
-    db_insert = {
-        "auction_id_ssp": str(uuid4()),
-        "ad_url": "adx_2 mock ad url",
-        "ttl": 5,
-        "adx_id": "adx_2",
-        "auction_id_adx": str(uuid4()),
-        "bid_amount": 5.59,
-        "categories": ["gaming", "movies"],
-        "publisher_id": "pub_espn",
-    }
-    data_model_map = {
-            "auction_id_ssp":"auction_id",
-            "adx_id": "winner",
-            "bid_amount": "winner_bid"
-    }
-    db_insert["is_rendered"] = False
-    db_insert.update({"time_created": time_created, "time_closed": time_closed})
-    # single
-    for old_key, new_key in data_model_map.items():
-        db_insert[new_key] = db_insert.pop(old_key)
-    # bulk
-    bulk_data = [{**db_insert, "auction_id": str(uuid4())} for _ in range(3)]
-    try:
-        await db.execute(insert(Auction.__table__), db_insert)
-    except IntegrityError as e:
-        logger.error(f"Failed the insert:\n{e}")
-        return {"insert failed": e}
-    try:
-        await db.execute(insert(Auction.__table__), bulk_data)
-    except IntegrityError as e:
-        logger.error(f"Failed the bulk insert:\n{e}")
-        return {"bulk insert failed": e}
-    try:
-        await db.commit()
-    except IntegrityError  as e:
-        logger.error(f"Failed the commit:\n{e}")
-        return {"commit failed": e}
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
 
 @app.get("/healthz")
 async def healthz():
@@ -273,10 +207,10 @@ async def refresh_keys(request: Request):
 async def send_ad_request(
     session: aiohttp.ClientSession,
     url: str,
-    json: AdRequestSSP,
+    json: dict,
     api_key: str,
 ) -> BidSSP:
-
+    start = perf_counter()
     if api_key == "NO KEY":
         logger.warning(f"Cancelling ad request for {url}: No API key")
         return
@@ -284,22 +218,16 @@ async def send_ad_request(
     logger.debug(f"Sending request to {url}")
     before_request = perf_counter()
     time_sent = datetime.now(UTC).timestamp()
-    async with session.post(
-        url=url, headers={"X-API-KEY": api_key}, json=json.model_dump()
-    ) as response:
+    async with session.post(url=url, headers={"X-API-KEY": api_key}, json=json) as response:
         response_time = perf_counter() - before_request
         time_received = datetime.now(UTC).timestamp()
-        if response.status != 200:
-            response_text = await response.text()
-            logger.info(
-                f"Ad request did not return 200. Got status: {response.status}\n"
-                f"Response body:\n{response_text}"
-            )
-            AD_REQUESTS_SENT.labels(status="error").inc()
-            AD_REQUEST_DURATION.labels(status="error").observe(response_time)
-            if response.status in [401, 403]:
+        if response.status in [200, 204]:
+            AD_REQUESTS_SENT.labels(status="success").inc()
+            AD_REQUEST_DURATION.labels(status="success").observe(response_time)
+
+            if response.status == 204:
                 return response
-        else:
+
             response_json = await response.json()
             response_json.update({
                 "time_sent": time_sent,
@@ -307,13 +235,19 @@ async def send_ad_request(
                 "is_winning": False
             })
             logger.debug(f"Response:\n{response_json}")
-            AD_REQUESTS_SENT.labels(status="success").inc()
-            AD_REQUEST_DURATION.labels(status="success").observe(response_time)
             try:
-                BidSSP.model_validate(response_json)
                 return BidSSP(**response_json)
             except ValidationError as e:
                 logger.error(str(e))
+        else:
+            response_text = await response.text()
+            logger.info(
+                f"Ad request did not return 200. Got status: {response.status}\n"
+                f"Response body:\n{response_text}"
+            )
+            AD_REQUESTS_SENT.labels(status="error").inc()
+            AD_REQUEST_DURATION.labels(status="error").observe(response_time)
+            return response
 
 
 def determine_winner(bids: list[dict]) -> dict:
@@ -338,7 +272,7 @@ async def fetch_api_keys():
 
 def get_api_key(request: Request, adx_url: str):
     api_keys = request.app.state.api_keys
-    adx_id = adx_url.split("/")[-1].split("_")[1]
+    adx_id = adx_url[-1]
     for key, key_data in api_keys.items():
         if key_data["adx_id"] == adx_id:
             return key
@@ -366,9 +300,6 @@ def process_responses(
 
 # Helper functions
 async def create_database_tables():
-    from ..dependencies.database import async_engine
-    from ..models.models import Base
-
     async with async_engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
 

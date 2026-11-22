@@ -14,7 +14,6 @@ logging.basicConfig(
 
 
 class UserProfile(BaseModel):
-    user_id: str
     device: str
     channel: str
     preference: str
@@ -36,7 +35,6 @@ def generate_user() -> UserProfile:
     - 'local_hour' is an integer in '[0, 23]'. Hours 19–23 are three times as likely as hours
     0–18, so the hour distribution is biased toward the evening.
     """
-    user_id = str(uuid4())[:8]
     device = choices(list(DEVICES.keys()), weights=DEVICE_WEIGHTS, k=1)[0]
     channel = choice(DEVICES[device]["channels"])
     preference = choice(CATEGORIES)
@@ -52,7 +50,6 @@ def generate_user() -> UserProfile:
     )[0]  # we generate more hours between 19 and 23
 
     user_info = {
-        "user_id": user_id,
         "device": device,
         "channel": channel,
         "preference": preference,

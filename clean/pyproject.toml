@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "ad-exchange"
+version = "0.1.0"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["shared*", "OWS*", "SSP*"]

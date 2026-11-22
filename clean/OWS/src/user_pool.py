@@ -1,4 +1,4 @@
-from random import randint
+from random import choice, randint
 
 from .generator_user import generate_user
 
@@ -18,12 +18,22 @@ class User:
 
 _user_pool = []
 
+def pick():
+    try:
+        return choice(_user_pool)
+    except IndexError:
+        user = User()
+        _user_pool.append(user)
+        return user
 
 def user_exhaust_check(user: User):
     if user.is_exhausted():
-        _user_pool.remove(user)
+        try:
+            _user_pool.remove(user)
+        except ValueError:
+            pass # We don't really care for users, so there is no need to fight racing
         _user_pool.append(User())
-
+    
 
 def populate_user_pool(population: int = 10000):
     _user_pool.clear()

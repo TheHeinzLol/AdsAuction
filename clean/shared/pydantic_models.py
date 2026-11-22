@@ -1,11 +1,9 @@
 from pydantic import BaseModel, ConfigDict
-from datetime import datetime
 
 
 class AdRequestCommon(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    user_id: str
     category: str
     floor_price: float  # temp until publisher policy is implemented
     device: str
@@ -28,17 +26,19 @@ class AdResponseSSP(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     auction_id_ssp: str
-    ad_url: str
+    creative_url: str
     ttl: int
+    render_beacon: str
 
 
 class AdResponseADX(AdResponseSSP):
     adx_id: str
-    auction_id_adx: str
     creative_url: str
     bid_amount: float
     categories: list[str]
-    render_beacon: str
+
+class AdRenderOWS(BaseModel):
+    auction_id_ssp: str
 
 class BidSSP(AdResponseADX):
 

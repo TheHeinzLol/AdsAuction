@@ -5,12 +5,12 @@ services:
     env_file:
       - ../.env
     ports: 
-      - "${REDIS_PORT:-6380}:6379"
-    volumes:
-      - redis-ssp-volume:/AdsAuction/app/exchange/redis
+      - "${REDIS_SSP_PORT:-6380}:6379" # I don't need redis ports for localhost after development
+   # volumes:
+   #   - redis-ssp-volume:/AdsAuction/app/exchange/redis
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 86400s
+      interval: 5s
       timeout: 5s
       retries: 3
     networks:
@@ -24,41 +24,22 @@ services:
       - ./.env
     ports:
       - "${DB_SSP_PORT:-5433}:5432"  
-    volumes:
-      - db-ssp-volume:/var/lib/postgresql/data
+    #volumes:
+    #  - db-ssp-volume:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
-      interval: 86400s
+      interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - ADXNetwork
     restart: on-failure
 
-  adx:
-    build:
-      context: ..
-      dockerfile: SSP/Dockerfile.adx
-    env_file:
-      - ../.env
-      - ./.env
-    volumes:
-      - ../shared:/app/shared
-    healthcheck:
-      test:  ["CMD", "python", "-c",
-      "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
-      interval: 86400s
-      timeout: 5s
-      retries: 5
-    ports: 
-      - "${SSP_PORT:-8002}:8000"
-    networks:
-      - ADXNetwork
-
   ssp:
     build:
       context: ..
       dockerfile: SSP/Dockerfile
+    hostname: ssp
     env_file:
       - ../.env
       - ./.env
@@ -71,7 +52,7 @@ services:
     healthcheck:
       test:  ["CMD", "python", "-c",
       "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
-      interval: 86400s
+      interval: 5s
       timeout: 5s
       retries: 5
     ports: 
@@ -106,6 +87,7 @@ networks:
     driver: bridge
 
 volumes:
-  db-ssp-volume:
+  #db-ssp-volume:
   PGAdminVolume:
-  redis-ssp-volume:
+  #redis-ssp-volume:
+
