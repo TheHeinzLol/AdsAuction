@@ -1,20 +1,18 @@
 
+import fcntl
+import json
 import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from random import choice, choices, randint, random, uniform
-from uuid import uuid4
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response, status
 from pydantic import ValidationError
 
 from shared.pydantic_models import AdRequestSSP, AdResponseADX
-
-from pathlib import Path 
-import fcntl
-import json
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -97,6 +95,8 @@ async def get_stamps(request: Request):
     return {"stamps": result}
 # ===== Helper functions =====
 from time import perf_counter
+
+
 async def adx_ad_request(
     request: Request, payload: AdRequestSSP, x_api_key: str = Header()
 ):

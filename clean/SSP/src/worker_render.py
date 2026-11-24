@@ -59,6 +59,7 @@ async def bulk_update(aucs: list[str], redis: aioredis.Redis):
             logger.error(f"failed rows: {failed_rows}")
             try:
                 await redis.rpush("auction:to_render", redis.rpush(*unmatched))
+                failed_rows.clear() 
             except Exception as e:
                 logger.error(f"Failed to rpush failed rows:\n{e}")
 
@@ -67,6 +68,7 @@ async def update_with_bisection(db, table, auctions):
     try:
         await db.execute(stmt)
         await db.commit()
+        logger.debug(f"Updated {len(auctions)} rows")
     except Exception as e:
         await db.rollback()
         if len(auctions) == 1:

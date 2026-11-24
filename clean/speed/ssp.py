@@ -1,8 +1,10 @@
-from time import perf_counter
 import asyncio
-import aiohttp
 import time
+from time import perf_counter
 from urllib.parse import urljoin
+
+import aiohttp
+
 ADX_URL = "http://localhost:8002/"
 #adx_urls = [urljoin(ADX_URL, "/test") for adx_id in range(1)]
 adx_urls = [urljoin(ADX_URL, f"ad_request_adx_{adx_id}") for adx_id in range(1)]

@@ -1,11 +1,11 @@
-configs:
-  file: ../.env
 
 services:
 
   prometheus:
     image: prom/prometheus:v3.15.0
     container_name: prometheus_rtb
+    env_file:
+      - ../.env
     labels:
       logging: "enabled"
     volumes:
@@ -23,6 +23,8 @@ services:
   loki:
     image: grafana/loki:latest
     container_name: loki_rtb
+    env_file:
+      - ../.env
     command: -config.file=/etc/loki/local-config.yaml
     ports:
       - "${LOKI_PORT:-3101}:3100"
@@ -32,6 +34,8 @@ services:
   tempo:
     image: grafana/tempo:main-9035640-2280-1
     container_name: tempo_rtb
+    env_file:
+      - ../.env
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
       - ./tempo.yaml:/etc/tempo.yaml:ro
@@ -43,6 +47,8 @@ services:
   grafana:
     image: grafana/grafana:13.2.3-slim
     container_name: grafana_rtb
+    env_file:
+      - ../.env
     labels:
       logging: "enabled"
     ports:
@@ -61,6 +67,8 @@ services:
   alloy:
     image: grafana/alloy:v1.21.2
     container_name: alloy
+    env_file:
+      - ../.env
     ports:
       - "${ALLOY_PORT:-12346}:12345"
     volumes:

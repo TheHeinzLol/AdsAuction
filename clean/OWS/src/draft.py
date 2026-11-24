@@ -1,7 +1,8 @@
 # benchmark_ssp.py
 import asyncio
-import aiohttp
 import time
+
+import aiohttp
 
 SSP_URL = "http://localhost:8001/ad_request"
 NUM_REQUESTS = 2500

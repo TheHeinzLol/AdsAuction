@@ -9,3 +9,6 @@ version = "0.1.0"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["shared*", "OWS*", "SSP*"]
+
+[tool.ruff.lint]
+ignore = ["BLE001"]

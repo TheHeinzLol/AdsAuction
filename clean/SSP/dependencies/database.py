@@ -1,8 +1,9 @@
 
 import os
-from fastapi import Depends
 from typing import Annotated
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "admin")

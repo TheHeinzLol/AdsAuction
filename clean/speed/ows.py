@@ -1,7 +1,7 @@
 import asyncio
 import time
+
 import aiohttp
-import statistics
 
 URL = "http://localhost:8001/ad_request"
 ad_request_ows = {

@@ -5,7 +5,7 @@ discovery.docker "containers" {
 
   filter {
     name   = "label"
-    values = ["com.docker.compose.project=lgtm-test"]
+    values = ["com.docker.compose.project=RTB"]
   }
 }
 

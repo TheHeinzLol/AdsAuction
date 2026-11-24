@@ -10,11 +10,13 @@ from shared.pydantic_models import AdRequestOWS
 from .delayed_queue import schedule
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT, RENDERS_SKIPPED
 from .publisher_data import PUBLISHERS
-from .user_pool import User, populate_user_pool, user_exhaust_check, pick
+from .user_pool import User, pick, populate_user_pool, user_exhaust_check
 from .user_pool import _user_pool as user_pool
 
 logger = logging.getLogger(__name__)
 from aiohttp.client_exceptions import ContentTypeError
+
+
 async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
     before_request = perf_counter()
     user, request_data = generate_request_data()
@@ -62,12 +64,11 @@ async def make_ad_request(session: aiohttp.ClientSession, url: str) -> dict:
             user_exhaust_check(user)
             return response_time
 
-    except ContentTypeError as e:
+    except ContentTypeError:
         response_txt = await response.text()
         logger.error(f"conetnt type: {response.headers.get("Content-Type")}\nText:\n{response_txt}")
     except Exception as e:
-        logger.error(f"ad request failed. error:\n{str(e)}\nerror_type: {type(e).__name__}\nURL: {url}")
-        return {"error": str(e), "error_type": type(e).__name__}
+        logger.error(f"ad request failed. error:\n{e!s}\nerror_type: {type(e).__name__}\nURL: {url}")
 
 
 def generate_request_data(debug_mode: bool = False) -> tuple[User, AdRequestOWS]:

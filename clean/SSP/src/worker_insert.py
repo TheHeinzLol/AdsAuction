@@ -1,15 +1,13 @@
 
 import asyncio
-import sqlalchemy
-from redis import asyncio as aioredis
 import json
-import time
 import logging
+import time
 
 from dependencies.database import SessionLocal
 from models.models import Auction, Bid
+from redis import asyncio as aioredis
 from sqlalchemy import insert
-from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +23,19 @@ async def worker_insert(
         interval_sec: int = 2
 ):
     if redis is None:
+        logger.info("Redis is None")
         return
     try:
+
         logger.info("worker started")
+        logger.debug(f"Redis connections pool: {redis.connection_pool.max_connections}")
         last_insert_time = time.time()
         while True:
             pending = await redis.llen("auction:to_process")
             time_since_last_insert = time.time() - last_insert_time
             #logger.debug(f"Time since last insert: {time_since_last_insert}, pending {pending}")
             if pending >= batch_size or time_since_last_insert >= interval_sec:
+                logger.debug(f"Active connections: {len(redis.connection_pool._available_connections)}")
                 aucs_to_insert = []
                 bids_to_insert = []
                 #get the records from redis
@@ -66,7 +68,7 @@ async def worker_insert(
                         await redis.delete(f"auction:{auction_id}:bids")
                     await redis.ltrim('auction:to_process', batch_size, -1)
                 except Exception as e:
-                    logger.error(f"Failed deleting:\n{str(e)}")
+                    logger.error(f"Failed deleting:\n{e!s}")
                 logger.info("inserted rows")
                 pending = await redis.llen("auction:to_process")
                 logger.info(f"pending:{pending}")
@@ -84,10 +86,10 @@ async def bulk_insert(aucs: list[dict], bids: list[dict]):
         logger.error(f"failed rows: {failed_rows}")
 
 async def insert_with_bisection(db, table, data_batch):
-    global failed_rows
     try:
         await db.execute(insert(table.__table__), data_batch)
         await db.commit()
+        logger.debug(f"Inserted {len(data_batch)} rows")
     except Exception as e:
         await db.rollback()
         if len(data_batch) == 1:

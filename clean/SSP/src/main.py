@@ -10,23 +10,21 @@ from urllib.parse import urljoin
 from uuid import uuid4
 
 import aiohttp
+from dependencies.database import async_engine
+from dependencies.redis import close_redis, get_redis
 from fastapi import FastAPI, Request, Response, status
+from models.models import Base
 from pydantic import ValidationError
 
-from dependencies.database import async_engine
-from models.models import Base
 from shared.metrics_server import start_metrics_server
 from shared.pydantic_models import (
     AdRenderOWS,
     AdRequestOWS,
-    AdRequestSSP,
     AdResponseSSP,
     BidSSP,
     ModelAuctionsSSP,
-    ModelBidsSSP,
 )
 
-from dependencies.redis import close_redis, get_redis
 from .metrics import AD_REQUEST_DURATION, AD_REQUESTS_SENT
 from .worker_insert import worker_insert
 from .worker_render import worker_render
@@ -169,7 +167,6 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
         async with redis.pipeline() as pipe:
             for bid in bids:
                 pipe.rpush(f"auction:{auction_id}:bids", json.dumps(bid))
-                logging
             pipe.rpush(f"auction:{auction_id}", json.dumps(db_insert))
             pipe.rpush("auction:to_process", auction_id)
             await pipe.execute()
@@ -187,7 +184,7 @@ async def ssp_answer(payload: AdRequestOWS, request: Request) -> AdResponseSSP:
 async def confirm_render(payload: AdRenderOWS, request: Request) -> dict:
     redis = request.app.state.redis
     try:
-        await redis.rpush(f"auction:to_render", payload.auction_id_ssp)
+        await redis.rpush("auction:to_render", payload.auction_id_ssp)
     except Exception as e:
         logger.error(f"Failed to push render:\n{e}")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -210,7 +207,6 @@ async def send_ad_request(
     json: dict,
     api_key: str,
 ) -> BidSSP:
-    start = perf_counter()
     if api_key == "NO KEY":
         logger.warning(f"Cancelling ad request for {url}: No API key")
         return

@@ -1,6 +1,5 @@
 import logging
 from random import choice, choices, randint, sample
-from uuid import uuid4
 
 from pydantic import BaseModel, ValidationError
 

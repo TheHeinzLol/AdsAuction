@@ -1,10 +1,9 @@
 
 import os
-from fastapi import FastAPI
-from redis import asyncio as aioredis
-from typing import Optional
 
-_redis_client: Optional[aioredis.Redis] = None
+from redis import asyncio as aioredis
+
+_redis_client: aioredis.Redis | None = None
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = 6379
 async def get_redis():
