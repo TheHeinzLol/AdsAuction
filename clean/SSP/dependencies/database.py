@@ -29,7 +29,7 @@ SessionLocal = async_sessionmaker(
         expire_on_commit=False,
         autocommit=False,
         autoflush=False
-    )
+)
 
 async def get_db():
     async with SessionLocal() as db:

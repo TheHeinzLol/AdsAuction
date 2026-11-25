@@ -22,13 +22,16 @@ async def worker_render(
     logger.info("Worker started")
     last_update_time = time.time()
     try:
-        for _ in range(2):
-        #while True:
+        #for _ in range(2):
+        while True:
+            await asyncio.sleep(2)
             pending = await redis.llen("auction:to_render")
-            logger.info(f"pending: {pending}")
+            logger.info(f"pending before pop: {pending}")
             time_since_last_update = time.time() - last_update_time
             if pending >= batch_size or time_since_last_update >= interval_sec:
                 auction_ids = await redis.lpop("auction:to_render",  batch_size)
+                pending = await redis.llen("auction:to_render")
+                logger.info(f"pending after pop: {pending}")
                 if not auction_ids:
                     await asyncio.sleep(0.1)
                     continue
@@ -44,13 +47,15 @@ async def worker_render(
        
 
 async def bulk_update(aucs: list[str], redis: aioredis.Redis):
+    pending = await redis.llen("auction:to_render")
+    logger.info(f"llen before update: {pending}")
     matched = []
     unmatched = []
     async with SessionLocal() as db:
         # get only existing rows since update doesn't throw an error
         # so we could lose those renders not yet having an auction inserted
         existing = await db.scalars(select(Auction.auction_id).where(Auction.auction_id.in_(aucs)))
-        existing = set(existing.all())
+        existing = set(map(str, existing.all()))
         for auc in aucs:
             if auc in existing:
                 matched.append(auc)
@@ -58,10 +63,13 @@ async def bulk_update(aucs: list[str], redis: aioredis.Redis):
                 unmatched.append(auc)
         #update itself
         await update_with_bisection(db, Auction, matched)
+        if unmatched:
+            await redis.rpush("auction:to_render", *unmatched)
+        pending = await redis.llen("auction:to_render")
+        logger.info(f"llen after update: {pending}")
         if failed_rows:
             logger.error(f"failed rows: {failed_rows}")
             try:
-                await redis.rpush("auction:to_render", redis.rpush(*unmatched))
                 failed_rows.clear() 
             except Exception as e:
                 logger.error(f"Failed to rpush failed rows:\n{e}")

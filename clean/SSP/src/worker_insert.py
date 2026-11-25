@@ -3,7 +3,7 @@ import asyncio
 import json
 import logging
 import time
-
+import sys, traceback
 from dependencies.database import SessionLocal
 from models.models import Auction, Bid
 from redis import asyncio as aioredis
@@ -28,16 +28,14 @@ async def worker_insert(
     try:
 
         logger.info("worker started")
-        logger.info(logger)
         logger.debug(f"Redis connections pool: {redis.connection_pool.max_connections}")
         last_insert_time = time.time()
         pending = await redis.llen("auction:to_process")
         logger.info(f"Pending: {pending}")
         while True:
-        #for _ in range(2):
             pending = await redis.llen("auction:to_process")
             time_since_last_insert = time.time() - last_insert_time
-            logger.info(f"Time since last insert: {time_since_last_insert}, pending {pending}")
+            logger.debug(f"Time since last insert: {time_since_last_insert}, pending {pending}")
             if pending >= batch_size or time_since_last_insert >= interval_sec:
                 logger.debug(f"Active connections: {len(redis.connection_pool._available_connections)}")
                 aucs_to_insert = []
@@ -45,6 +43,8 @@ async def worker_insert(
                 #get the records from redis
                 auction_ids = await redis.lrange("auction:to_process", 0, batch_size - 1)
                 logger.debug(f"auction_ids len: {len(auction_ids)}")
+                if pending == 0:
+                    return
                 if not auction_ids:
                     continue
                 for auction_id in auction_ids:
@@ -79,7 +79,6 @@ async def worker_insert(
                 pending = await redis.llen("auction:to_process")
                 logger.info(f"pending:{pending}")
                 last_insert_time = time.time()
-                await asyncio.sleep(2)
     except asyncio.CancelledError:
         raise  # Let graceful shutdown work
     except Exception as e:
@@ -94,7 +93,7 @@ async def bulk_insert(aucs: list[dict], bids: list[dict]):
         await insert_with_bisection(db, Bid, bids)
         logger.error(f"failed rows: {failed_rows}")
 
-async def insert_with_bisection(db, table, data_batch):
+async def insert_with_bisection(db, table, data_batch, depth=0):
     try:
         await db.execute(insert(table.__table__), data_batch)
         await db.commit()
@@ -102,6 +101,11 @@ async def insert_with_bisection(db, table, data_batch):
     except Exception as e:
         await db.rollback()
         if len(data_batch) == 1:
+            logger.error(
+                "depth=%s recusionlimit=%s exc=%s\n%s",
+                depth, sys.getrecursionlimit(), type(e).__name__,
+                "".join(traceback.format_exception_only(type(e), e)),
+            )
             #logger.error(f"row insert failed:\n{e}")
             if table.__table__ == Auction.__table__:
                 failed_rows["auctions"].append((data_batch[0], str(e)))
@@ -110,7 +114,7 @@ async def insert_with_bisection(db, table, data_batch):
             return
         # Split and retry
         mid = len(data_batch) // 2
-        await insert_with_bisection(db, table, data_batch[:mid])
-        await insert_with_bisection(db, table, data_batch[mid:])
+        await insert_with_bisection(db, table, data_batch[:mid], depth+1)
+        await insert_with_bisection(db, table, data_batch[mid:], depth+1)
 
 
