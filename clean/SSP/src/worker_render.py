@@ -22,8 +22,10 @@ async def worker_render(
     logger.info("Worker started")
     last_update_time = time.time()
     try:
-        while True:
+        for _ in range(2):
+        #while True:
             pending = await redis.llen("auction:to_render")
+            logger.info(f"pending: {pending}")
             time_since_last_update = time.time() - last_update_time
             if pending >= batch_size or time_since_last_update >= interval_sec:
                 auction_ids = await redis.lpop("auction:to_render",  batch_size)
@@ -37,7 +39,8 @@ async def worker_render(
         raise  # Let graceful shutdown work
     except Exception as e:
         logger.error(f"Worker crashed: {e}")
-        await asyncio.sleep(1)
+        raise
+#        await asyncio.sleep(1)
        
 
 async def bulk_update(aucs: list[str], redis: aioredis.Redis):

@@ -5,7 +5,7 @@ from redis import asyncio as aioredis
 
 _redis_client: aioredis.Redis | None = None
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = 6379
+REDIS_PORT = 6380 if REDIS_HOST == "localhost" else 6379
 async def get_redis():
     global _redis_client
     if _redis_client is None:

@@ -28,18 +28,23 @@ async def worker_insert(
     try:
 
         logger.info("worker started")
+        logger.info(logger)
         logger.debug(f"Redis connections pool: {redis.connection_pool.max_connections}")
         last_insert_time = time.time()
+        pending = await redis.llen("auction:to_process")
+        logger.info(f"Pending: {pending}")
         while True:
+        #for _ in range(2):
             pending = await redis.llen("auction:to_process")
             time_since_last_insert = time.time() - last_insert_time
-            #logger.debug(f"Time since last insert: {time_since_last_insert}, pending {pending}")
+            logger.info(f"Time since last insert: {time_since_last_insert}, pending {pending}")
             if pending >= batch_size or time_since_last_insert >= interval_sec:
                 logger.debug(f"Active connections: {len(redis.connection_pool._available_connections)}")
                 aucs_to_insert = []
                 bids_to_insert = []
                 #get the records from redis
                 auction_ids = await redis.lrange("auction:to_process", 0, batch_size - 1)
+                logger.debug(f"auction_ids len: {len(auction_ids)}")
                 if not auction_ids:
                     continue
                 for auction_id in auction_ids:
@@ -54,6 +59,7 @@ async def worker_insert(
                     logger.debug(f"=====raw_bids=====:\n{raw_bids}")
                     bids = [json.loads(b) for b in raw_bids]
                     for bid in bids:
+                        logger.debug(f"bid:\n{bid}")
                         bid["auction_id"] = bid.pop("auction_id_ssp")
                     bids_to_insert.extend(bids)
                     logger.debug(f"bids: \n{bids}")
@@ -73,11 +79,14 @@ async def worker_insert(
                 pending = await redis.llen("auction:to_process")
                 logger.info(f"pending:{pending}")
                 last_insert_time = time.time()
+                await asyncio.sleep(2)
     except asyncio.CancelledError:
         raise  # Let graceful shutdown work
     except Exception as e:
         logger.error(f"Worker crashed: {e}")
-        await asyncio.sleep(1)
+        raise
+        #await asyncio.sleep(1)
+
 
 async def bulk_insert(aucs: list[dict], bids: list[dict]):
     async with SessionLocal() as db:

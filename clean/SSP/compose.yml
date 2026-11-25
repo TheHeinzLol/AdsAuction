@@ -60,8 +60,8 @@ services:
     networks:
       - ADXNetwork
     depends_on:
-      adx:
-        condition: service_healthy
+     # adx:
+      #  condition: service_healthy
       db-ssp:
         condition: service_healthy
       redis-ssp:
