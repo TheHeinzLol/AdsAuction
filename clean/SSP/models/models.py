@@ -18,7 +18,7 @@ class Base(DeclarativeBase):
 
 class Auction(Base):
     __tablename__ = "ssp_auctions"
-    auction_id: Mapped[str] = mapped_column(Uuid(as_uuid=True, native_uuid=True), primary_key=True)
+    auction_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True, native_uuid=True), primary_key=True)
     time_created: Mapped[float] = mapped_column(Float, nullable=False)
     time_closed: Mapped[float] = mapped_column(Float, nullable=False)
     publisher_id: Mapped[str] = mapped_column(String, nullable=False)
@@ -49,3 +49,28 @@ class Bid(Base):
     __table_args__ = (
         CheckConstraint("bid_amount > 0", name="bid_amount_positive"),
     )
+
+class AuctionStage(Base):
+    __tablename__ = "ssp_auctions_stage"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    auction_id: Mapped[str | None] = mapped_column(String)
+    time_created: Mapped[float | None] = mapped_column(Float)
+    time_closed: Mapped[float | None] = mapped_column(Float)
+    publisher_id: Mapped[str | None] = mapped_column(String)
+    winner: Mapped[str | None] = mapped_column(String)
+    winner_bid: Mapped[float | None] = mapped_column(Float)
+    is_rendered: Mapped[bool | None] = mapped_column(Boolean)
+
+class BidStage(Base):
+    __tablename__ = "bids_stage"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    auction_id: Mapped[str | None] = mapped_column(String)
+    time_sent: Mapped[float | None] = mapped_column(Float)
+    time_received: Mapped[float | None] = mapped_column(Float)
+    adx_id: Mapped[str | None] = mapped_column(String)
+    creative_url: Mapped[str | None] = mapped_column(String)
+    bid_amount: Mapped[float | None] = mapped_column(Float)
+    is_winning: Mapped[bool | None] = mapped_column(Boolean)
+    categories: Mapped[list | None] = mapped_column(ARRAY(String))
+    render_beacon: Mapped[str | None] = mapped_column(String)
+

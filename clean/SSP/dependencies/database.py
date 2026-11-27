@@ -11,11 +11,14 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "admin")
 POSTGRES_USER = os.getenv("POSTGRES_USER", "admin")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "database_ssp")
 
+#this is for sqlalchemy
 DATABASE_URL = os.getenv(
         'SSP_DB_URL', 
         f"postgresql+psycopg://"
         f"{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 )
+# and this one is for psycopg
+CONNINFO = DATABASE_URL.replace("+psycopg", "")
 #async engine for everything else
 async_engine = create_async_engine(
     DATABASE_URL,
